@@ -1,6 +1,7 @@
 import HeroBanner from "./components/HeroBanner";
 import StatsBar from "./components/StatsBar";
 import StoresList from "./components/StoresList";
+import Footer from "./components/Footer";
 
 export default function Home() {
   return (
@@ -8,6 +9,7 @@ export default function Home() {
       <HeroBanner />
       <StatsBar />
       <StoresList />
+      <Footer />
     </main>
   );
 }
