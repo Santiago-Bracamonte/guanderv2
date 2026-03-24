@@ -11,7 +11,7 @@ export default function Home() {
       <HeroBanner />
       <DownloadsSection />
       <StatsBar />
-      <StoresList />
+      
       <SubscriptionPlans />
       <Footer />
     </main>
