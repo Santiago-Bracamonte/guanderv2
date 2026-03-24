@@ -3,6 +3,15 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --guander-forest: #1f4b3b;
+  --guander-forest-deep: #173a2d;
+  --guander-mint: #deebdf;
+  --guander-cream: #f4f5ef;
+  --guander-sand: #e3b75e;
+  --guander-ink: #2b312e;
+  --guander-muted: #61736a;
+  --guander-card: #f8fbf7;
+  --guander-border: #cfe0d2;
 }
 
 @theme inline {
@@ -14,8 +23,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 
