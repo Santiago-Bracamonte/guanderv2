@@ -6,6 +6,13 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+
+const TAG_GRADIENTS: Record<string, string> = {
+  Tienda: 'linear-gradient(135deg, #2e7d32 0%, #43a047 100%)',
+  Profesional: 'linear-gradient(135deg, #1565c0 0%, #42a5f5 100%)',
+};
 
 export interface OfferCardItem {
   id: number;
@@ -96,6 +103,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
                 border: '1px solid',
                 borderColor: 'rgba(61,82,213,0.1)',
                 bgcolor: 'background.paper',
+                overflow: 'hidden',
                 transition: 'transform 0.25s, box-shadow 0.25s',
                 '&:hover': {
                   transform: 'translateY(-4px)',
@@ -103,19 +111,46 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
                 },
               }}
             >
-              <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                  <Chip
-                    label={offer.tag}
-                    size="small"
-                    color="primary"
-                    sx={{ fontSize: '0.65rem' }}
-                  />
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                    #{index + 1}
-                  </Typography>
+              {/* Image placeholder */}
+              <Box
+                sx={{
+                  height: 130,
+                  background: TAG_GRADIENTS[offer.tag] ?? 'linear-gradient(135deg, #607d8b 0%, #90a4ae 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                }}
+              >
+                {offer.tag === 'Profesional' ? (
+                  <WorkspacePremiumIcon sx={{ fontSize: 52, color: 'rgba(255,255,255,0.35)' }} />
+                ) : (
+                  <LocalOfferIcon sx={{ fontSize: 52, color: 'rgba(255,255,255,0.35)' }} />
+                )}
+                {/* Tag chip over the image */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 10,
+                    left: 12,
+                    bgcolor: 'rgba(0,0,0,0.45)',
+                    backdropFilter: 'blur(6px)',
+                    color: '#fff',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    px: 1.2,
+                    py: 0.4,
+                    borderRadius: 99,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {offer.tag}
                 </Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1, lineHeight: 1.4 }}>
+              </Box>
+
+              <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.75, lineHeight: 1.4 }}>
                   {offer.title}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
