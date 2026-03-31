@@ -11,6 +11,16 @@ import Button from '@mui/material/Button';
 import InputAdornment from '@mui/material/InputAdornment';
 import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+
+const CATEGORY_GRADIENTS: Record<string, { from: string; to: string }> = {
+  "Veterinaria":   { from: "#3D52D5", to: "#4A9FD4" },
+  "Pet Shop":      { from: "#1d7a4f", to: "#43D696" },
+  "Cafetería":     { from: "#b45309", to: "#f59e0b" },
+  "Restaurante":   { from: "#be185d", to: "#f472b6" },
+  "Grooming":      { from: "#7c3aed", to: "#a78bfa" },
+  "Resort":        { from: "#0f766e", to: "#34d399" },
+};
 
 export interface LocationItem {
   id: number;
@@ -127,13 +137,16 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
           gap: 2.5,
         }}
       >
-        {filteredLocations.map((location) => (
+        {filteredLocations.map((location) => {
+          const grad = CATEGORY_GRADIENTS[location.category] ?? { from: "#3D52D5", to: "#6B7FD4" };
+          return (
           <Card
             key={location.id}
             variant="outlined"
             sx={{
               border: '1px solid',
               borderColor: 'rgba(61,82,213,0.1)',
+              overflow: 'hidden',
               transition: 'transform 0.25s, box-shadow 0.25s',
               '&:hover': {
                 transform: 'translateY(-4px)',
@@ -141,19 +154,40 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
               },
             }}
           >
+            {/* Placeholder image */}
+            <Box
+              sx={{
+                height: 140,
+                background: `linear-gradient(135deg, ${grad.from} 0%, ${grad.to} 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+              }}
+            >
+              <PhotoCameraIcon sx={{ fontSize: 40, color: 'rgba(255,255,255,0.35)' }} />
+              <Chip
+                label={location.category}
+                size="small"
+                sx={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  bgcolor: 'rgba(255,255,255,0.18)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '0.65rem',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                }}
+              />
+            </Box>
+
             <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '0.9375rem', lineHeight: 1.3 }}>
-                  {location.name}
-                </Typography>
-                <Chip
-                  label={location.category}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  sx={{ flexShrink: 0 }}
-                />
-              </Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '0.9375rem', lineHeight: 1.3, mb: 1 }}>
+                {location.name}
+              </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.6 }}>
                 {location.description}
               </Typography>
@@ -165,7 +199,8 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
               </Box>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </Box>
 
       {filteredLocations.length === 0 && (
