@@ -211,18 +211,18 @@ export default async function AdminDashboardPage() {
 
       {/* Welcome Banner */}
       <div
-        className="rounded-2xl p-8 flex items-center justify-between gap-6"
+        className="rounded-2xl p-5 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
         style={{ backgroundColor: 'var(--guander-forest)' }}
       >
         <div>
-          <h1 className="text-2xl font-bold text-white mb-2">
+          <h1 className="text-xl md:text-2xl font-bold text-white mb-2">
             Bienvenido/a al Panel de Administración
           </h1>
           <p className="text-white/80 text-sm leading-relaxed">
             Gestiona toda la plataforma desde aquí. Monitorea usuarios, locales, estadísticas y más.
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:shrink-0">
           <Link
             href="/dashboard/admin/usuarios?add=true"
             className="px-4 py-2.5 rounded-lg border border-white/40 text-white text-sm font-medium no-underline hover:bg-white/10 transition flex items-center gap-2"

@@ -293,8 +293,8 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1 relative">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
+        <div className="flex-1 relative min-w-0">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: 'var(--guander-muted)' }} />
           <input type="text" placeholder="Buscar local..." value={search} onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-11 pr-4 py-3 rounded-xl text-sm outline-none transition bg-white"
@@ -303,12 +303,12 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
         </div>
         <select value={category} onChange={(e) => setCategory(e.target.value)}
           className="px-4 py-3 rounded-xl text-sm outline-none bg-white cursor-pointer"
-          style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}
+          style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)', minWidth: '160px' }}
         >
           {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
         </select>
         <button onClick={openAdd}
-          className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 shrink-0 cursor-pointer transition hover:opacity-90"
+          className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 cursor-pointer transition hover:opacity-90"
           style={{ backgroundColor: 'var(--guander-forest)' }}
         >
           <Plus size={16} /> Agregar Local

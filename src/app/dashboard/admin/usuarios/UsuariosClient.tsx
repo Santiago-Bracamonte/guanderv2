@@ -112,7 +112,7 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="flex-1 relative">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: 'var(--guander-muted)' }} />
           <input type="text" placeholder="Buscar usuario..." value={search} onChange={(e) => setSearch(e.target.value)}
@@ -121,7 +121,7 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
           />
         </div>
         <button onClick={openAdd}
-          className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 shrink-0 cursor-pointer transition hover:opacity-90"
+          className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 cursor-pointer transition hover:opacity-90"
           style={{ backgroundColor: 'var(--guander-forest)' }}
         >
           <UserPlus size={16} />
@@ -131,7 +131,8 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
 
       {/* Users Table */}
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: '1px solid var(--guander-border)' }}>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[500px]">
           <thead>
             <tr style={{ backgroundColor: 'var(--guander-mint)' }}>
               <th className="text-left px-5 py-3 font-semibold" style={{ color: 'var(--guander-forest)' }}>ID</th>
@@ -158,6 +159,7 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Add User Modal */}

@@ -24,7 +24,12 @@ const navItems = [
   { label: 'Mensajes', href: '/dashboard/admin/mensajes', icon: MessageSquare, badge: 5 },
 ];
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export default function AdminSidebar({ open = false, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
 
   const isActive = (href: string) => {
@@ -34,16 +39,23 @@ export default function AdminSidebar() {
 
   return (
     <aside
-      className="w-[220px] min-w-[220px] min-h-full bg-white flex flex-col border-r"
+      className={[
+        'w-[220px] min-w-[220px] bg-white flex flex-col border-r',
+        // Mobile: fixed drawer
+        'fixed md:static inset-y-0 left-0 z-40',
+        'transition-transform duration-200 ease-in-out',
+        open ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+      ].join(' ')}
       style={{ borderColor: 'var(--guander-border)' }}
     >
-      <nav className="flex-1 py-4 px-3">
+      <nav className="flex-1 py-4 px-3 overflow-y-auto">
         {navItems.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors mb-0.5 no-underline ${
                 active
                   ? 'text-[var(--guander-forest)]'

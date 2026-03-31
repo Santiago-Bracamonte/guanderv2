@@ -2,31 +2,43 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Menu, LogOut } from 'lucide-react';
 
 interface AdminNavbarProps {
   adminName?: string;
   adminRole?: string;
+  onMenuClick?: () => void;
 }
 
 export default function AdminNavbar({
   adminName = 'Administrador',
   adminRole = 'Administrador del Sistema',
+  onMenuClick,
 }: AdminNavbarProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
-    router.push('/dashboard/admin/login');
+    router.push('/login');
   };
 
   return (
     <header
-      className="h-16 bg-white border-b flex items-center px-6 justify-between shrink-0"
+      className="h-14 md:h-16 bg-white border-b flex items-center px-4 md:px-6 justify-between shrink-0 z-20"
       style={{ borderColor: 'var(--guander-border)' }}
     >
-      <div className="flex items-center gap-6">
-        <Link href="/admin" className="flex items-center gap-2 no-underline">
-          <span className="font-bold text-lg" style={{ color: 'var(--guander-ink)' }}>
+      <div className="flex items-center gap-3">
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={onMenuClick}
+          className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition cursor-pointer"
+          aria-label="Abrir menú"
+        >
+          <Menu size={20} style={{ color: 'var(--guander-ink)' }} />
+        </button>
+
+        <Link href="/dashboard/admin" className="flex items-center gap-2 no-underline">
+          <span className="font-bold text-base md:text-lg" style={{ color: 'var(--guander-ink)' }}>
             Guander
           </span>
           <span
@@ -37,9 +49,10 @@ export default function AdminNavbar({
           </span>
         </Link>
 
-        <nav className="flex items-center gap-6 ml-6">
+        {/* Desktop nav links */}
+        <nav className="hidden md:flex items-center gap-6 ml-4">
           <Link
-            href="/admin"
+            href="/dashboard/admin"
             className="text-sm font-medium no-underline hover:opacity-70 transition"
             style={{ color: 'var(--guander-ink)' }}
           >
@@ -62,20 +75,26 @@ export default function AdminNavbar({
         </nav>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="text-right">
-          <div className="text-sm font-semibold" style={{ color: 'var(--guander-ink)' }}>
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* User info — hide on very small screens */}
+        <div className="hidden sm:block text-right">
+          <div className="text-sm font-semibold truncate max-w-[160px]" style={{ color: 'var(--guander-ink)' }}>
             {adminName}
           </div>
           <div className="text-[11px]" style={{ color: 'var(--guander-muted)' }}>
             {adminRole}
           </div>
         </div>
+        {/* Desktop: full button — Mobile: icon only */}
         <button
           onClick={handleLogout}
-          className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
+          className="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer
+            w-9 h-9 flex items-center justify-center
+            sm:w-auto sm:h-auto sm:px-4 sm:py-2"
+          aria-label="Cerrar Sesión"
         >
-          Cerrar Sesión
+          <LogOut size={16} className="sm:hidden" />
+          <span className="hidden sm:inline">Cerrar Sesión</span>
         </button>
       </div>
     </header>
