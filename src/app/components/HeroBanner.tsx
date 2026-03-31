@@ -15,23 +15,24 @@ export default function HeroBanner() {
 
       <Container
         maxWidth="xl"
-        sx={{ pb: { xs: 8, sm: 12 }, pt: 3, px: { xs: 3, sm: 4 } }}
+        sx={{ pb: { xs: 8, sm: 12 }, pt: { xs: 2, sm: 3 }, px: { xs: 3, sm: 4 } }}
       >
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: { xs: 'column', lg: 'row' },
+            alignItems: { xs: 'center', lg: 'center' },
             justifyContent: 'space-between',
-            gap: 4,
+            gap: { xs: 6, lg: 4 },
           }}
         >
           {/* Left: copy */}
-          <Box sx={{ maxWidth: 560 }}>
+          <Box sx={{ maxWidth: { xs: '100%', lg: 560 }, textAlign: { xs: 'center', lg: 'left' } }}>
             <Typography
               variant="h1"
               sx={{
                 color: 'white',
-                fontSize: { xs: '2.5rem', md: '3.25rem', lg: '3.75rem' },
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.25rem', lg: '3.75rem' },
                 mb: 3,
               }}
             >
@@ -45,9 +46,10 @@ export default function HeroBanner() {
               sx={{
                 color: 'rgba(255,255,255,0.75)',
                 mb: 4,
-                maxWidth: 380,
+                maxWidth: { xs: '100%', sm: 420 },
+                mx: { xs: 'auto', lg: 0 },
                 lineHeight: 1.75,
-                fontSize: '0.9375rem',
+                fontSize: { xs: '0.9375rem', md: '1rem' },
               }}
             >
               Tiendas, veterinarias, cafes, restaurantes y profesionales que aman
@@ -55,7 +57,12 @@ export default function HeroBanner() {
               lo mejor a tu peludo.
             </Typography>
 
-            <Stack direction="row" spacing={2} flexWrap="wrap">
+            <Stack
+              direction="row"
+              spacing={2}
+              flexWrap="wrap"
+              sx={{ justifyContent: { xs: 'center', lg: 'flex-start' } }}
+            >
               <Button
                 component="a"
                 href="#tiendas"

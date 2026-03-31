@@ -51,7 +51,7 @@ export default function Footer() {
           {/* Brand */}
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Typography sx={{ color: '#43D696', fontSize: '1.25rem', fontWeight: 900 }}>?</Typography>
+              <Typography sx={{ color: '#43D696', fontSize: '1.25rem', fontWeight: 900 }}>✶</Typography>
               <Typography variant="h6" sx={{ color: 'white', fontWeight: 800 }}>Guander</Typography>
             </Box>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
