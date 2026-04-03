@@ -70,6 +70,23 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
+const CLOUD_NAME = 'dwckkyqpw';
+const UPLOAD_PRESET = 'guander_unsigned';
+
+async function uploadToCloudinary(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', UPLOAD_PRESET);
+  fd.append('folder', 'guander/locales');
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+    method: 'POST',
+    body: fd,
+  });
+  const data = await res.json() as { secure_url?: string; error?: { message: string } };
+  if (!res.ok || !data.secure_url) throw new Error(data.error?.message ?? 'Upload failed');
+  return data.secure_url;
+}
+
 /* ─── Main ─── */
 export default function LocalesClient({ initialLocales }: { initialLocales: LocaleItem[] }) {
   const searchParams = useSearchParams();
@@ -130,12 +147,13 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     try {
       let imageUrl = editLocale.image;
       if (formImageFile) {
-        const fd = new FormData();
-        fd.append('file', formImageFile);
-        const uploadRes = await fetch('/api/admin/upload-image', { method: 'POST', body: fd });
-        const uploadData = await uploadRes.json() as { url?: string; error?: string };
-        if (uploadData.url) imageUrl = uploadData.url;
-        else if (uploadData.error) { alert(`Error subiendo imagen: ${uploadData.error}`); setSaving(false); return; }
+        try {
+          imageUrl = await uploadToCloudinary(formImageFile);
+        } catch (e) {
+          alert(`Error subiendo imagen: ${String(e)}`);
+          setSaving(false);
+          return;
+        }
       }
       await fetch('/api/admin/locales', {
         method: 'PUT',
@@ -180,12 +198,13 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     try {
       let imageUrl = '';
       if (formImageFile) {
-        const fd = new FormData();
-        fd.append('file', formImageFile);
-        const uploadRes = await fetch('/api/admin/upload-image', { method: 'POST', body: fd });
-        const uploadData = await uploadRes.json() as { url?: string; error?: string };
-        if (uploadData.url) imageUrl = uploadData.url;
-        else if (uploadData.error) { alert(`Error subiendo imagen: ${uploadData.error}`); setSaving(false); return; }
+        try {
+          imageUrl = await uploadToCloudinary(formImageFile);
+        } catch (e) {
+          alert(`Error subiendo imagen: ${String(e)}`);
+          setSaving(false);
+          return;
+        }
       }
       const res = await fetch('/api/admin/locales', {
         method: 'POST',
