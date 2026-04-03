@@ -33,3 +33,29 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* ── Aurora shader animations ── */
+@keyframes aurora-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(6%, 4%) scale(1.1); }
+  66%       { transform: translate(-4%, 7%) scale(0.95); }
+}
+@keyframes aurora-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%       { transform: translate(-7%, -5%) scale(1.12); }
+  75%       { transform: translate(5%, -3%) scale(0.93); }
+}
+@keyframes aurora-3 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%       { transform: translate(4%, -6%) scale(1.08) rotate(8deg); }
+}
+@keyframes aurora-4 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  30%       { transform: translate(-3%, 5%) scale(1.06); }
+  70%       { transform: translate(6%, -2%) scale(0.97); }
+}
+
+.aurora-blob-1 { animation: aurora-1 14s ease-in-out infinite; }
+.aurora-blob-2 { animation: aurora-2 18s ease-in-out infinite; }
+.aurora-blob-3 { animation: aurora-3 11s ease-in-out infinite; }
+.aurora-blob-4 { animation: aurora-4 22s ease-in-out infinite; }
