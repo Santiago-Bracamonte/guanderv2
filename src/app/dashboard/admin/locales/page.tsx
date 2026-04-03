@@ -1,6 +1,8 @@
 ﻿import { queryD1 } from '@/lib/cloudflare-d1';
 import LocalesClient, { type LocaleItem } from './LocalesClient';
 
+export const dynamic = 'force-dynamic';
+
 const CATEGORY_LABELS: Record<number, string> = {
   1: 'Veterinaria',
   2: 'Pet Shop',
@@ -37,6 +39,11 @@ function slugify(text: string): string {
 
 export default async function LocalesPage() {
   let locales: LocaleItem[] = [];
+
+  // Ensure image_url column exists (idempotent)
+  try {
+    await queryD1('ALTER TABLE stores ADD COLUMN image_url TEXT', [], { revalidate: false });
+  } catch { /* column already exists */ }
 
   try {
     const stores = await queryD1<StoreRow>(
