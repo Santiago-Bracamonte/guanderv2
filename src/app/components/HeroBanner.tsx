@@ -9,13 +9,41 @@ export default function HeroBanner() {
   return (
     <Box
       component="section"
-      sx={{ background: 'linear-gradient(135deg, #3D52D5 0%, #4A9FD4 55%, #43D8B0 100%)' }}
+      sx={{ position: 'relative', overflow: 'hidden' }}
     >
-      <Navbar />
+      {/* Background video */}
+      <Box
+        component="video"
+        autoPlay
+        muted
+        loop
+        playsInline
+        src="/v1.mp4"
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          zIndex: 0,
+        }}
+      />
+      {/* Overlay to keep text readable */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, rgba(61,82,213,0.72) 0%, rgba(74,159,212,0.60) 55%, rgba(67,216,176,0.55) 100%)',
+          zIndex: 1,
+        }}
+      />
+      <Box sx={{ position: 'relative', zIndex: 2 }}>
+        <Navbar />
+      </Box>
 
       <Container
         maxWidth="xl"
-        sx={{ pb: { xs: 8, sm: 12 }, pt: { xs: 2, sm: 3 }, px: { xs: 3, sm: 4 } }}
+        sx={{ pb: { xs: 8, sm: 12 }, pt: { xs: 2, sm: 3 }, px: { xs: 3, sm: 4 }, position: 'relative', zIndex: 2 }}
       >
         <Box
           sx={{
