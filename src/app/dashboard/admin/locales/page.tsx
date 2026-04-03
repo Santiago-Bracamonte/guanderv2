@@ -17,6 +17,7 @@ interface StoreRow {
   address: string | null;
   stars: number | null;
   fk_category: number | null;
+  image_url: string | null;
 }
 
 function inferType(stars: number | null, index: number): 'Premium' | 'Profesional' | 'Free' {
@@ -39,7 +40,7 @@ export default async function LocalesPage() {
 
   try {
     const stores = await queryD1<StoreRow>(
-      'SELECT id_store, name, description, address, stars, fk_category FROM stores ORDER BY id_store DESC',
+      'SELECT id_store, name, description, address, stars, fk_category, image_url FROM stores ORDER BY id_store DESC',
       [],
       { revalidate: false },
     );
@@ -66,7 +67,7 @@ export default async function LocalesPage() {
       type: inferType(store.stars, i),
       description: store.description ?? '',
       address: store.address ?? '',
-      image: PLACEHOLDER_IMAGES[i % PLACEHOLDER_IMAGES.length],
+      image: store.image_url ?? PLACEHOLDER_IMAGES[i % PLACEHOLDER_IMAGES.length],
     }));
   } catch {
     // Fallback sample data when D1 is unavailable

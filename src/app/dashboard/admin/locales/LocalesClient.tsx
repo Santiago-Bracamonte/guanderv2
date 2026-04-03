@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Search, Star, ImageIcon, Download, Settings, Plus, X, MapPin, Building2 } from 'lucide-react';
 
@@ -86,6 +86,11 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
   const [formAddress, setFormAddress] = useState('');
   const [formCategory, setFormCategory] = useState(1);
   const [formStars, setFormStars] = useState('');
+  const [formLocation, setFormLocation] = useState('');
+  const [formUserEmail, setFormUserEmail] = useState('');
+  const [formImageFile, setFormImageFile] = useState<File | null>(null);
+  const [formImagePreview, setFormImagePreview] = useState('');
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (searchParams.get('add') === 'true') {
@@ -99,6 +104,10 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     setFormAddress(locale.address);
     setFormCategory(locale.categoryId ?? 1);
     setFormStars(locale.rating?.toString() ?? '');
+    setFormLocation('');
+    setFormUserEmail('');
+    setFormImageFile(null);
+    setFormImagePreview(locale.image || '');
     setEditLocale(locale);
   };
 
@@ -108,6 +117,10 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     setFormAddress('');
     setFormCategory(1);
     setFormStars('');
+    setFormLocation('');
+    setFormUserEmail('');
+    setFormImageFile(null);
+    setFormImagePreview('');
     setShowAdd(true);
   };
 
@@ -115,6 +128,15 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     if (!editLocale || !formName.trim()) return;
     setSaving(true);
     try {
+      let imageUrl = editLocale.image;
+      if (formImageFile) {
+        const fd = new FormData();
+        fd.append('file', formImageFile);
+        const uploadRes = await fetch('/api/admin/upload-image', { method: 'POST', body: fd });
+        const uploadData = await uploadRes.json() as { url?: string; error?: string };
+        if (uploadData.url) imageUrl = uploadData.url;
+        else if (uploadData.error) { alert(`Error subiendo imagen: ${uploadData.error}`); setSaving(false); return; }
+      }
       await fetch('/api/admin/locales', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -125,6 +147,7 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
           address: formAddress,
           stars: formStars ? parseFloat(formStars) : null,
           fk_category: formCategory,
+          image_url: imageUrl,
         }),
       });
       setLocales((prev) =>
@@ -138,6 +161,7 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
                 rating: formStars ? parseFloat(formStars) : null,
                 category: CATEGORY_MAP[formCategory] ?? 'Sin categoría',
                 categoryId: formCategory,
+                image: imageUrl,
               }
             : l,
         ),
@@ -154,20 +178,35 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     if (!formName.trim()) return;
     setSaving(true);
     try {
-      await fetch('/api/admin/locales', {
+      let imageUrl = '';
+      if (formImageFile) {
+        const fd = new FormData();
+        fd.append('file', formImageFile);
+        const uploadRes = await fetch('/api/admin/upload-image', { method: 'POST', body: fd });
+        const uploadData = await uploadRes.json() as { url?: string; error?: string };
+        if (uploadData.url) imageUrl = uploadData.url;
+        else if (uploadData.error) { alert(`Error subiendo imagen: ${uploadData.error}`); setSaving(false); return; }
+      }
+      const res = await fetch('/api/admin/locales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formName,
           description: formDescription,
           address: formAddress,
+          location: formLocation || '0,0',
           fk_category: formCategory,
+          stars: formStars ? parseFloat(formStars) : 0,
+          user_email: formUserEmail || null,
+          image_url: imageUrl || null,
         }),
       });
+      const data = await res.json() as { success?: boolean; id_store?: number; error?: string };
+      if (!res.ok || data.error) { alert(data.error ?? 'Error al crear local'); setSaving(false); return; }
       const newLocale: LocaleItem = {
-        id: Date.now(),
+        id: data.id_store ?? Date.now(),
         name: formName,
-        email: `${formName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'nuevo'}@gmail.com`,
+        email: formUserEmail || `${formName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'nuevo'}@gmail.com`,
         category: CATEGORY_MAP[formCategory] ?? 'Sin categoría',
         categoryId: formCategory,
         rating: formStars ? parseFloat(formStars) : null,
@@ -175,7 +214,7 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
         type: 'Free',
         description: formDescription,
         address: formAddress,
-        image: PLACEHOLDER_IMAGES[locales.length % PLACEHOLDER_IMAGES.length],
+        image: imageUrl || PLACEHOLDER_IMAGES[locales.length % PLACEHOLDER_IMAGES.length],
       };
       setLocales((prev) => [newLocale, ...prev]);
       setShowAdd(false);
@@ -259,16 +298,55 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
           />
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--guander-ink)' }}>Ubicación</label>
+          <input
+            type="text" value={formLocation} onChange={(e) => setFormLocation(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}
+            placeholder="Lat,Lng o dirección"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--guander-ink)' }}>Email del propietario</label>
+          <input
+            type="email" value={formUserEmail} onChange={(e) => setFormUserEmail(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}
+            placeholder="usuario@email.com"
+          />
+        </div>
+      </div>
       <div>
         <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--guander-ink)' }}>Imagen</label>
+        <input
+          type="file"
+          accept="image/*"
+          ref={imageInputRef}
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            setFormImageFile(file);
+            if (file) setFormImagePreview(URL.createObjectURL(file));
+            else setFormImagePreview('');
+          }}
+        />
         <div
-          className="rounded-xl overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition"
+          onClick={() => imageInputRef.current?.click()}
+          className="rounded-xl overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition relative"
           style={{ border: '2px dashed var(--guander-border)', background: 'var(--guander-cream)', height: '120px' }}
         >
-          <div className="text-center">
-            <ImageIcon size={32} style={{ color: 'var(--guander-muted)' }} className="mx-auto mb-1" />
-            <p className="text-xs" style={{ color: 'var(--guander-muted)' }}>Arrastra una imagen o click para subir</p>
-          </div>
+          {formImagePreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={formImagePreview} alt="preview" className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-center">
+              <ImageIcon size={32} style={{ color: 'var(--guander-muted)' }} className="mx-auto mb-1" />
+              <p className="text-xs" style={{ color: 'var(--guander-muted)' }}>Click para subir imagen</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--guander-muted)' }}>JPG, PNG, WEBP · máx 10MB</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
