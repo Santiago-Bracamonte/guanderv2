@@ -13,6 +13,7 @@ interface StoreRow {
   location: string | null;
   stars: number | null;
   fk_category: number | null;
+  image_url: string | null;
 }
 
 const CATEGORY_LABELS: Record<number, string> = {
@@ -38,11 +39,12 @@ export default async function LocationsFilterSection() {
 
   try {
     const stores = await queryD1<StoreRow>(
-      "SELECT id_store, name, description, address, location, stars, fk_category FROM stores ORDER BY id_store ASC"
+      "SELECT id_store, name, description, address, location, stars, fk_category, image_url FROM stores ORDER BY id_store ASC"
     );
     locations = stores.map((store) => ({
       id: store.id_store,
       name: store.name,
+      image: store.image_url ?? null,
       description:
         store.description ??
         (store.stars != null

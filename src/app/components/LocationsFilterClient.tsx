@@ -28,6 +28,7 @@ export interface LocationItem {
   description: string;
   category: string;
   city: string;
+  image: string | null;
 }
 
 interface LocationsFilterClientProps {
@@ -155,18 +156,28 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
               },
             }}
           >
-            {/* Placeholder image */}
+            {/* Card image */}
             <Box
               sx={{
                 height: 140,
-                background: `linear-gradient(135deg, ${grad.from} 0%, ${grad.to} 100%)`,
+                background: location.image ? 'none' : `linear-gradient(135deg, ${grad.from} 0%, ${grad.to} 100%)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 position: 'relative',
+                overflow: 'hidden',
               }}
             >
-              <PhotoCameraIcon sx={{ fontSize: 40, color: 'rgba(255,255,255,0.35)' }} />
+              {location.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={location.image}
+                  alt={location.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                <PhotoCameraIcon sx={{ fontSize: 40, color: 'rgba(255,255,255,0.35)' }} />
+              )}
               <Chip
                 label={location.category}
                 size="small"
