@@ -24,7 +24,7 @@ export default function CustomerDashboard() {
 
     try {
       const userData = JSON.parse(userStr);
-      if (userData.role !== "customer") {
+      if (userData.role !== "store_owner") {
         router.push("/login");
         return;
       }
