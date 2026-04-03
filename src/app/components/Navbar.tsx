@@ -30,6 +30,12 @@ export default function Navbar() {
           </li>
         ))}
       </ul>
+      <Link
+        href="/local/dashboard"
+        className="rounded-full border border-white/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
+      >
+        Dashboard Local
+      </Link>
     </nav>
   );
 }

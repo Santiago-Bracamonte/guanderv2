@@ -25,6 +25,7 @@ function normalizeText(value: string): string {
 export default function LocationsFilterClient({ locations }: LocationsFilterClientProps) {
   const [activeCategory, setActiveCategory] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState<boolean>(false);
 
   const distinct = Array.from(new Set(locations.map((location) => location.category)));
   const categories = ["Todos", ...distinct];
@@ -72,7 +73,69 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
             Filtro activo: {activeCategory}
           </p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
+          <div className="lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen((prev) => !prev)}
+              aria-expanded={mobileFiltersOpen}
+              className="flex w-full items-center justify-between rounded-2xl border border-[color:var(--guander-border)] bg-white px-4 py-3 text-left"
+            >
+              <span className="text-xs font-black uppercase tracking-[0.12em] text-[color:var(--guander-forest)]">
+                Filtros
+              </span>
+              <span className="text-xs font-semibold text-[color:var(--guander-muted)]">
+                {mobileFiltersOpen ? "Ocultar" : "Mostrar"}
+              </span>
+            </button>
+
+            {mobileFiltersOpen && (
+              <div className="mt-3 space-y-3 rounded-2xl border border-[color:var(--guander-border)] bg-white p-3">
+                <label className="block">
+                  <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--guander-muted)]">
+                    Buscar
+                  </span>
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Nombre, ciudad o descripcion"
+                    className="w-full rounded-xl border border-[color:var(--guander-border)] bg-white px-3 py-2.5 text-sm text-[color:var(--guander-ink)] placeholder:text-[#40564d] outline-none focus:border-[color:var(--guander-forest)] focus:ring-2 focus:ring-[color:var(--guander-mint)]"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-[color:var(--guander-muted)]">
+                    Categoria
+                  </span>
+                  <select
+                    value={activeCategory}
+                    onChange={(event) => setActiveCategory(event.target.value)}
+                    className="w-full rounded-xl border border-[color:var(--guander-border)] bg-white px-3 py-2.5 text-sm text-[color:var(--guander-ink)] outline-none focus:border-[color:var(--guander-forest)] focus:ring-2 focus:ring-[color:var(--guander-mint)]"
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category} ({categoryCount[category] ?? 0})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  disabled={!hasActiveFilters}
+                  onClick={() => {
+                    setActiveCategory("Todos");
+                    setSearchTerm("");
+                  }}
+                  className="w-full rounded-xl bg-[color:var(--guander-forest)] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="hidden lg:grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
             <label className="flex items-center pointer-events-auto">
               <input
                 type="search"
@@ -96,7 +159,7 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
             </button>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap pointer-events-auto">
+          <div className="hidden lg:flex items-center gap-2 flex-wrap pointer-events-auto">
             {categories.map((category) => (
               <button
                 key={category}
