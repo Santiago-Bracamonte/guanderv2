@@ -41,6 +41,7 @@ function normalizeText(value: string): string {
 export default function LocationsFilterClient({ locations }: LocationsFilterClientProps) {
   const [activeCategory, setActiveCategory] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState<boolean>(false);
 
   const distinct = Array.from(new Set(locations.map((l) => l.category)));
   const categories = ["Todos", ...distinct];
