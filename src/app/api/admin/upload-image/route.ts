@@ -1,11 +1,19 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
+import { v2 as cloudinary } from 'cloudinary';
 
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
-const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(req: NextRequest) {
-  if (!ACCOUNT_ID || !API_TOKEN) {
-    return NextResponse.json({ error: 'Cloudflare credentials not configured' }, { status: 500 });
+  if (
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  ) {
+    return NextResponse.json({ error: 'Cloudinary credentials not configured' }, { status: 500 });
   }
 
   let file: File | null = null;
@@ -29,29 +37,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'La imagen no puede superar 10MB' }, { status: 400 });
   }
 
-  const cfForm = new FormData();
-  cfForm.append('file', file);
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
 
-  const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/images/v1`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${API_TOKEN}` },
-      body: cfForm,
-    },
-  );
+  try {
+    const result = await new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'guander/locales', resource_type: 'image' },
+        (error, res) => {
+          if (error || !res) reject(error ?? new Error('Upload failed'));
+          else resolve(res as { secure_url: string; public_id: string });
+        },
+      ).end(buffer);
+    });
 
-  const data = await res.json() as {
-    success: boolean;
-    result?: { id: string; variants: string[] };
-    errors?: { message: string }[];
-  };
-
-  if (!data.success || !data.result) {
-    const msg = data.errors?.[0]?.message ?? 'Upload failed';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ url: result.secure_url, id: result.public_id });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
-
-  const url = data.result.variants.find((v) => v.endsWith('/public')) ?? data.result.variants[0];
-  return NextResponse.json({ url, id: data.result.id });
 }
