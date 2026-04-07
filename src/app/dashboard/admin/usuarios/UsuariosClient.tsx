@@ -52,6 +52,7 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
   const [formEmail, setFormEmail] = useState('');
   const [formTel, setFormTel] = useState('');
   const [formUsername, setFormUsername] = useState('');
+  const [formRol, setFormRol] = useState<'store_owner' | 'professional'>('store_owner');
 
   const [viewUser, setViewUser] = useState<UserItem | null>(null);
 
@@ -64,7 +65,7 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
   const [editSaving, setEditSaving] = useState(false);
 
   const openAdd = () => {
-    setFormName(''); setFormLastName(''); setFormEmail(''); setFormTel(''); setFormUsername('');
+    setFormName(''); setFormLastName(''); setFormEmail(''); setFormTel(''); setFormUsername(''); setFormRol('store_owner');
     setShowAdd(true);
   };
 
@@ -84,7 +85,7 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: formName, lastName: formLastName, email: formEmail, tel: formTel, username: formUsername }),
+        body: JSON.stringify({ name: formName, lastName: formLastName, email: formEmail, tel: formTel, username: formUsername, rol: formRol }),
       });
       if (!res.ok) { alert('Error al crear usuario'); return; }
       const newUser: UserItem = {
@@ -96,7 +97,7 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
         last_name: formLastName,
         email: formEmail,
         tel: formTel,
-        rol: '',
+        rol: formRol,
       };
       setUsers((prev) => [newUser, ...prev]);
       setTotalUsers((prev) => prev + 1);
@@ -352,6 +353,15 @@ export default function UsuariosClient({ initialUsers, totalUsers: initialTotal 
               className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
               style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}
               placeholder="+54 11 1234-5678" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--guander-ink)' }}>Rol *</label>
+            <select value={formRol} onChange={(e) => setFormRol(e.target.value as 'store_owner' | 'professional')}
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none cursor-pointer"
+              style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}>
+              <option value="store_owner">Store Owner</option>
+              <option value="professional">Profesional</option>
+            </select>
           </div>
           <div className="flex gap-3 pt-2">
             <button onClick={() => setShowAdd(false)}

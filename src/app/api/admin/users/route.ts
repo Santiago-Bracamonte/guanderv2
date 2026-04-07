@@ -37,19 +37,32 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: { name?: string; lastName?: string; email?: string; tel?: string; username?: string; rolId?: number };
+  let body: { name?: string; lastName?: string; email?: string; tel?: string; username?: string; rol?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
   }
 
-  const { name, lastName, email, tel, username, rolId } = body;
+  const { name, lastName, email, tel, username, rol } = body;
   if (!name?.trim() || !email?.trim() || !username?.trim()) {
     return NextResponse.json({ error: 'Nombre, email y username son requeridos' }, { status: 400 });
   }
+  const VALID_ROLES = ['store_owner', 'professional'];
+  if (rol && !VALID_ROLES.includes(rol)) {
+    return NextResponse.json({ error: 'Rol inválido' }, { status: 400 });
+  }
 
   try {
+    const rolName = rol ?? 'store_owner';
+    const rolRows = await queryD1<{ id_rol: number }>(
+      `SELECT id_rol FROM roles WHERE rol = ? LIMIT 1`,
+      [rolName],
+      { revalidate: false },
+    );
+    const rolId = rolRows[0]?.id_rol;
+    if (!rolId) throw new Error(`Role '${rolName}' not found`);
+
     await queryD1(
       `INSERT INTO user_data (name, last_name, email, tel, address, password_hash)
        VALUES (?, ?, ?, ?, '', NULL)`,
@@ -67,7 +80,7 @@ export async function POST(request: Request) {
     await queryD1(
       `INSERT INTO users (username, date_reg, state, fk_user_data, fk_rol)
        VALUES (?, CURRENT_TIMESTAMP, 1, ?, ?)`,
-      [username.trim(), userDataId, rolId ?? 1],
+      [username.trim(), userDataId, rolId],
       { revalidate: false },
     );
     return NextResponse.json({ success: true });
