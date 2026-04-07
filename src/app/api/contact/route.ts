@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const CONTACT_TO = 'tomas.gonzalezz@davinci.edu.ar';
 
@@ -17,28 +17,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Nombre, email y mensaje son requeridos' }, { status: 400 });
   }
 
-  // Basic email format validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email.trim())) {
     return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
   }
 
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpHost = process.env.SMTP_HOST ?? 'smtp.gmail.com';
-  const smtpPort = Number(process.env.SMTP_PORT ?? 587);
-
-  if (!smtpUser || !smtpPass) {
-    console.error('SMTP credentials not configured');
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error('RESEND_API_KEY not configured');
     return NextResponse.json({ error: 'Servicio de correo no configurado' }, { status: 503 });
   }
 
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: smtpUser, pass: smtpPass },
-  });
+  const resend = new Resend(apiKey);
 
   const mailSubject = subject?.trim()
     ? `[Guander Contacto] ${subject.trim()}`
@@ -63,13 +53,17 @@ export async function POST(request: Request) {
   `;
 
   try {
-    await transporter.sendMail({
-      from: `"Guander Contacto" <${smtpUser}>`,
+    const { error } = await resend.emails.send({
+      from: 'Guander Contacto <onboarding@resend.dev>',
       to: CONTACT_TO,
       replyTo: email.trim(),
       subject: mailSubject,
       html: htmlBody,
     });
+    if (error) {
+      console.error('Resend error:', error);
+      return NextResponse.json({ error: 'Error al enviar el mensaje. Intentá de nuevo.' }, { status: 500 });
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Contact email error:', err);
