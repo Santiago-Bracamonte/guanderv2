@@ -59,22 +59,21 @@ export async function POST(request: NextRequest) {
     items: [
       {
         id: String(planId),
-        title: `Guander – ${planName.trim()}`,
+        title: `Guander - ${planName.trim()}`,
         description:
           typeof planDescription === "string" && planDescription.trim()
-            ? planDescription.trim()
+            ? planDescription.trim().slice(0, 256)
             : `Suscripcion al plan ${planName.trim()} de Guander`,
         quantity: 1,
-        currency_id: "COP",
-        unit_price: amount,
+        currency_id: "ARS",
+        unit_price: Math.round(amount),
       },
     ],
     back_urls: {
-      success: `${siteUrl}/dashboard/store?payment=success`,
-      failure: `${siteUrl}/dashboard/store?payment=failure`,
-      pending: `${siteUrl}/dashboard/store?payment=pending`,
+      success: `${siteUrl}/dashboard/store/payment/success`,
+      failure: `${siteUrl}/dashboard/store/payment/failure`,
+      pending: `${siteUrl}/dashboard/store/payment/pending`,
     },
-    auto_return: "approved",
     metadata: {
       store_id: ctx.context.storeId,
       plan_id: planId,
@@ -93,8 +92,18 @@ export async function POST(request: NextRequest) {
   if (!mpResponse.ok) {
     const errorBody = await mpResponse.text();
     console.error("MercadoPago error:", mpResponse.status, errorBody);
+    let detail = "";
+    try {
+      const parsed = JSON.parse(errorBody) as { message?: string; cause?: Array<{ description?: string }> };
+      detail = parsed.message ?? "";
+      if (parsed.cause?.length) {
+        detail += " – " + parsed.cause.map((c) => c.description).join(", ");
+      }
+    } catch {
+      detail = errorBody.slice(0, 200);
+    }
     return NextResponse.json(
-      { error: "Could not create payment preference." },
+      { error: `No se pudo crear la preferencia de pago${detail ? `: ${detail}` : "."}` },
       { status: 502 }
     );
   }

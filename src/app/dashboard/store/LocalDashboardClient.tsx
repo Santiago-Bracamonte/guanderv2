@@ -88,9 +88,9 @@ const navItems: Array<{ id: DashboardSection; label: string; icon: React.ReactNo
 ];
 
 function money(value: number): string {
-  return new Intl.NumberFormat("es-CO", {
+  return new Intl.NumberFormat("es-AR", {
     style: "currency",
-    currency: "COP",
+    currency: "ARS",
     maximumFractionDigits: 0,
   }).format(value);
 }
