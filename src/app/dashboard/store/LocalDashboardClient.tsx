@@ -333,11 +333,42 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
   const [recText, setRecText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
 
   const currentAmount = data.store.plan_amount ?? 0;
   const sortedPlans = [...data.planOptions].sort((a, b) => a.amount - b.amount);
   const nextPlan = sortedPlans.find((p) => p.amount > currentAmount) ?? null;
   const isHighestPlan = nextPlan === null && data.planOptions.length > 0;
+
+  async function handleUpgrade() {
+    if (!nextPlan) return;
+    setUpgrading(true);
+    setUpgradeError(null);
+    try {
+      const res = await fetch("/api/store/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: nextPlan.id_subscription,
+          planName: nextPlan.name,
+          planDescription: nextPlan.description,
+          amount: nextPlan.amount,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        setUpgradeError(err.error ?? "No se pudo iniciar el pago. Intenta de nuevo.");
+        return;
+      }
+      const { checkoutUrl } = await res.json() as { checkoutUrl: string };
+      window.location.href = checkoutUrl;
+    } catch {
+      setUpgradeError("Error de red. Verificá tu conexión e intentá de nuevo.");
+    } finally {
+      setUpgrading(false);
+    }
+  }
 
   async function handleSendRec() {
     if (!recText.trim()) return;
@@ -402,17 +433,26 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
             <Typography variant="h6" sx={{ mt: 1.2, fontWeight: 900 }}>
               {money(nextPlan.amount)} / mes
             </Typography>
+            {upgradeError && (
+              <Alert severity="error" sx={{ mt: 1.5, bgcolor: "rgba(255,255,255,0.12)", color: "#fff", "& .MuiAlert-icon": { color: "#fff" } }}>
+                {upgradeError}
+              </Alert>
+            )}
             <Button
               variant="contained"
+              disabled={upgrading}
+              onClick={handleUpgrade}
+              startIcon={upgrading ? <CircularProgress size={16} sx={{ color: "#1f4b3b" }} /> : undefined}
               sx={{
                 mt: 2,
                 bgcolor: "#fff",
                 color: "#1f4b3b",
                 fontWeight: 700,
                 "&:hover": { bgcolor: "#e8f1ec" },
+                "&.Mui-disabled": { bgcolor: "rgba(255,255,255,0.7)", color: "#1f4b3b" },
               }}
             >
-              Quiero actualizar al {nextPlan.name}
+              {upgrading ? "Redirigiendo..." : `Quiero actualizar al ${nextPlan.name}`}
             </Button>
           </CardContent>
         </Card>
