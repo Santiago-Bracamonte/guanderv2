@@ -6,6 +6,10 @@ interface BenefitRow {
   id_benefit_store?: number;
   title?: string;
   name?: string;
+  store_name?: string;
+  professional_name?: string;
+  professional_last_name?: string;
+  professional_description?: string;
   description?: string;
   percentage?: number | null;
   tag?: string;
@@ -16,11 +20,39 @@ export default async function ServiciosPage() {
   let tiendas: BenefitRow[] = [];
 
   try {
-    profesionales = await queryD1<BenefitRow>('SELECT * FROM benefit_prof ORDER BY 1 DESC LIMIT 12', [], { revalidate: false });
+    profesionales = await queryD1<BenefitRow>(
+      `SELECT
+         bp.id_benefit_prof,
+         bp.description,
+         bp.percentage,
+         ud.name AS professional_name,
+         ud.last_name AS professional_last_name,
+         p.description AS professional_description
+       FROM benefit_prof bp
+       LEFT JOIN professionals p ON p.id_professional = bp.fk_professional
+       LEFT JOIN users u ON u.id_user = p.fk_user_id
+       LEFT JOIN user_data ud ON ud.id_user_data = u.fk_user_data
+       ORDER BY bp.id_benefit_prof DESC
+       LIMIT 12`,
+      [],
+      { revalidate: false },
+    );
   } catch { /* fallback */ }
 
   try {
-    tiendas = await queryD1<BenefitRow>('SELECT * FROM benefit_store ORDER BY 1 DESC LIMIT 12', [], { revalidate: false });
+    tiendas = await queryD1<BenefitRow>(
+      `SELECT
+         bs.id_benefit_store,
+         bs.description,
+         bs.percentage,
+         s.name AS store_name
+       FROM benefit_store bs
+       LEFT JOIN stores s ON s.id_store = bs.fk_store
+       ORDER BY bs.id_benefit_store DESC
+       LIMIT 12`,
+      [],
+      { revalidate: false },
+    );
   } catch { /* fallback */ }
 
   const allItems = [
@@ -85,7 +117,12 @@ export default async function ServiciosPage() {
                   <ShoppingBag size={18} color="#3d6b4f" />
                 </div>
                 <h3 className="text-sm font-bold" style={{ color: 'var(--guander-ink)' }}>
-                  {item.name || item.title || 'Sin nombre'}
+                  {item.name
+                    || item.title
+                    || item.store_name
+                    || [item.professional_name, item.professional_last_name].filter(Boolean).join(' ')
+                    || item.professional_description
+                    || 'Sin nombre'}
                 </h3>
               </div>
               <span

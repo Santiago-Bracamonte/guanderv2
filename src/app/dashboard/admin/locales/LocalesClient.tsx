@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import L from 'leaflet';
 import { Search, Star, ImageIcon, Download, Settings, Plus, X, MapPin, Building2 } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -16,7 +17,34 @@ export interface LocaleItem {
   type: 'Premium' | 'Profesional' | 'Free';
   description: string;
   address: string;
+  location: string;
   image: string;
+}
+
+interface GeocodeSuggestion {
+  displayName: string;
+  lat: number;
+  lng: number;
+}
+
+interface ReverseGeocodeResponse {
+  address?: string;
+}
+
+const pickerMarkerIcon = L.icon({
+  iconUrl: '/Marcador.png',
+  iconSize: [52, 52],
+  iconAnchor: [26, 32],
+});
+
+function parseLatLng(raw: string | null): { lat: number; lng: number } | null {
+  if (!raw) return null;
+  const parts = raw.split(',').map((value) => Number(value.trim()));
+  if (parts.length !== 2) return null;
+  const [lat, lng] = parts;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat === 0 && lng === 0) return null;
+  return { lat, lng };
 }
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -54,19 +82,167 @@ const PLACEHOLDER_IMAGES = [
 ];
 
 /* ─── Modal ─── */
-function Modal({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+function Modal({
+  open,
+  onClose,
+  children,
+  maxWidthClass = 'max-w-xl',
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  maxWidthClass?: string;
+}) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
       <div
-        className="relative bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+        className={`relative bg-white rounded-2xl w-full ${maxWidthClass} max-h-[90vh] overflow-y-auto`}
         style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
     </div>
+  );
+}
+
+function MapLocationPicker({
+  open,
+  initialLocation,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  initialLocation: string;
+  onClose: () => void;
+  onConfirm: (payload: { location: string; address: string }) => void;
+}) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState('');
+  const [resolvingAddress, setResolvingAddress] = useState(false);
+
+  useEffect(() => {
+    if (!open || !mapContainerRef.current) return;
+
+    const initial = parseLatLng(initialLocation) ?? { lat: -34.603722, lng: -58.381592 };
+    setSelectedLocation(initial);
+
+    let cancelled = false;
+
+    const reverseGeocode = async (lat: number, lng: number) => {
+      setResolvingAddress(true);
+      try {
+        const res = await fetch(`/api/admin/locales/reverse-geocode?lat=${lat}&lng=${lng}`);
+        if (!res.ok) {
+          setSelectedAddress('');
+          return;
+        }
+        const data = (await res.json()) as ReverseGeocodeResponse;
+        setSelectedAddress(data.address ?? '');
+      } catch {
+        setSelectedAddress('');
+      } finally {
+        if (!cancelled) setResolvingAddress(false);
+      }
+    };
+
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: true,
+      scrollWheelZoom: true,
+    });
+    mapRef.current = map;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    map.setView([initial.lat, initial.lng], 15);
+    const marker = L.marker([initial.lat, initial.lng], {
+      draggable: true,
+      icon: pickerMarkerIcon,
+    }).addTo(map);
+    markerRef.current = marker;
+
+    void reverseGeocode(initial.lat, initial.lng);
+
+    const updateLocation = (lat: number, lng: number) => {
+      marker.setLatLng([lat, lng]);
+      setSelectedLocation({ lat, lng });
+      void reverseGeocode(lat, lng);
+    };
+
+    map.on('click', (event: L.LeafletMouseEvent) => {
+      updateLocation(event.latlng.lat, event.latlng.lng);
+    });
+
+    marker.on('dragend', () => {
+      const position = marker.getLatLng();
+      updateLocation(position.lat, position.lng);
+    });
+
+    requestAnimationFrame(() => map.invalidateSize());
+    setTimeout(() => map.invalidateSize(), 120);
+
+    return () => {
+      cancelled = true;
+      markerRef.current = null;
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, [open, initialLocation]);
+
+  return (
+    <Modal open={open} onClose={onClose} maxWidthClass="max-w-4xl">
+      <div className="p-6 pb-3 flex items-center justify-between">
+        <h2 className="text-lg font-bold" style={{ color: 'var(--guander-ink)' }}>Elegir ubicación en mapa</h2>
+        <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition"><X size={16} /></button>
+      </div>
+      <div className="px-6 pb-4 space-y-3">
+        <p className="text-sm" style={{ color: 'var(--guander-muted)' }}>
+          Haz click en el punto exacto del local o arrastra el pin para ajustar la ubicación.
+        </p>
+        <div
+          ref={mapContainerRef}
+          className="w-full rounded-xl overflow-hidden"
+          style={{ border: '1px solid var(--guander-border)', minHeight: '380px' }}
+        />
+        <div className="rounded-xl p-3" style={{ border: '1px solid var(--guander-border)', backgroundColor: 'var(--guander-cream)' }}>
+          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--guander-muted)' }}>Ubicación seleccionada</p>
+          <p className="text-sm" style={{ color: 'var(--guander-ink)' }}>
+            {selectedLocation
+              ? `${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}`
+              : 'Selecciona un punto en el mapa'}
+          </p>
+          <p className="text-xs mt-2" style={{ color: 'var(--guander-muted)' }}>
+            {resolvingAddress
+              ? 'Buscando dirección...'
+              : (selectedAddress || 'No se pudo resolver una dirección exacta para este punto.')}
+          </p>
+        </div>
+      </div>
+      <div className="p-6 pt-2 flex gap-3">
+        <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90" style={{ backgroundColor: '#c5cdb3', color: '#3d4f35' }}>Cancelar</button>
+        <button
+          onClick={() => {
+            if (!selectedLocation) return;
+            const location = `${selectedLocation.lat.toFixed(6)},${selectedLocation.lng.toFixed(6)}`;
+            onConfirm({ location, address: selectedAddress });
+          }}
+          disabled={!selectedLocation}
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: 'var(--guander-forest)' }}
+        >
+          Confirmar ubicación
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -107,7 +283,39 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
   const [formUserEmail, setFormUserEmail] = useState('');
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const query = formAddress.trim();
+    if (query.length < 4) {
+      setAddressSuggestions([]);
+      setIsSearchingAddress(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setIsSearchingAddress(true);
+      try {
+        const res = await fetch(`/api/admin/locales/geocode?q=${encodeURIComponent(query)}`);
+        if (!res.ok) {
+          setAddressSuggestions([]);
+          return;
+        }
+        const data = (await res.json()) as { suggestions?: GeocodeSuggestion[] };
+        setAddressSuggestions(data.suggestions ?? []);
+      } catch {
+        setAddressSuggestions([]);
+      } finally {
+        setIsSearchingAddress(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [formAddress]);
 
   useEffect(() => {
     if (searchParams.get('add') === 'true') {
@@ -121,10 +329,12 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     setFormAddress(locale.address);
     setFormCategory(locale.categoryId ?? 1);
     setFormStars(locale.rating?.toString() ?? '');
-    setFormLocation('');
+    setFormLocation(locale.location ?? '');
     setFormUserEmail('');
     setFormImageFile(null);
     setFormImagePreview(locale.image || '');
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
     setEditLocale(locale);
   };
 
@@ -138,7 +348,16 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
     setFormUserEmail('');
     setFormImageFile(null);
     setFormImagePreview('');
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
     setShowAdd(true);
+  };
+
+  const selectAddress = (suggestion: GeocodeSuggestion) => {
+    setFormAddress(suggestion.displayName);
+    setFormLocation(`${suggestion.lat.toFixed(6)},${suggestion.lng.toFixed(6)}`);
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
   };
 
   const handleSaveEdit = async () => {
@@ -163,6 +382,7 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
           name: formName,
           description: formDescription,
           address: formAddress,
+          location: formLocation || null,
           stars: formStars ? parseFloat(formStars) : null,
           fk_category: formCategory,
           image_url: imageUrl,
@@ -176,6 +396,7 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
                 name: formName,
                 description: formDescription,
                 address: formAddress,
+                location: formLocation,
                 rating: formStars ? parseFloat(formStars) : null,
                 category: CATEGORY_MAP[formCategory] ?? 'Sin categoría',
                 categoryId: formCategory,
@@ -213,7 +434,7 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
           name: formName,
           description: formDescription,
           address: formAddress,
-          location: formLocation || '0,0',
+          location: formLocation || null,
           fk_category: formCategory,
           stars: formStars ? parseFloat(formStars) : 0,
           user_email: formUserEmail || null,
@@ -233,6 +454,7 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
         type: 'Free',
         description: formDescription,
         address: formAddress,
+        location: formLocation,
         image: imageUrl || PLACEHOLDER_IMAGES[locales.length % PLACEHOLDER_IMAGES.length],
       };
       setLocales((prev) => [newLocale, ...prev]);
@@ -286,12 +508,42 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
       </div>
       <div>
         <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--guander-ink)' }}>Dirección</label>
-        <input
-          type="text" value={formAddress} onChange={(e) => setFormAddress(e.target.value)}
-          className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-          style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}
-          placeholder="Av. Corrientes 1234, CABA"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            value={formAddress}
+            onChange={(e) => {
+              setFormAddress(e.target.value);
+              setShowAddressSuggestions(true);
+            }}
+            onFocus={() => setShowAddressSuggestions(true)}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}
+            placeholder="Busca y selecciona la dirección exacta"
+          />
+          {showAddressSuggestions && (addressSuggestions.length > 0 || isSearchingAddress) && (
+            <div
+              className="absolute z-20 mt-2 w-full rounded-xl border bg-white overflow-hidden"
+              style={{ borderColor: 'var(--guander-border)', boxShadow: '0 12px 30px rgba(0,0,0,0.12)' }}
+            >
+              {isSearchingAddress ? (
+                <p className="px-4 py-3 text-xs" style={{ color: 'var(--guander-muted)' }}>Buscando direcciones...</p>
+              ) : (
+                addressSuggestions.map((suggestion, index) => (
+                  <button
+                    key={`${suggestion.lat}-${suggestion.lng}-${index}`}
+                    type="button"
+                    onClick={() => selectAddress(suggestion)}
+                    className="w-full text-left px-4 py-3 text-xs hover:bg-gray-50 transition"
+                    style={{ color: 'var(--guander-ink)' }}
+                  >
+                    {suggestion.displayName}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -319,12 +571,24 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--guander-ink)' }}>Ubicación</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-sm font-medium" style={{ color: 'var(--guander-ink)' }}>Ubicación</label>
+            <button
+              type="button"
+              onClick={() => setShowMapPicker(true)}
+              className="text-xs font-semibold px-3 py-1 rounded-lg border hover:bg-white transition"
+              style={{ borderColor: 'var(--guander-border)', color: 'var(--guander-forest)' }}
+            >
+              Elegir en mapa
+            </button>
+          </div>
           <input
-            type="text" value={formLocation} onChange={(e) => setFormLocation(e.target.value)}
+            type="text"
+            value={formLocation}
+            onChange={(e) => setFormLocation(e.target.value)}
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{ border: '1px solid var(--guander-border)', color: 'var(--guander-ink)' }}
-            placeholder="Lat,Lng o dirección"
+            placeholder="Lat,Lng del punto exacto"
           />
         </div>
         <div>
@@ -564,6 +828,20 @@ export default function LocalesClient({ initialLocales }: { initialLocales: Loca
           >{saving ? 'Creando...' : 'Crear Local'}</button>
         </div>
       </Modal>
+
+      <MapLocationPicker
+        open={showMapPicker}
+        initialLocation={formLocation}
+        onClose={() => setShowMapPicker(false)}
+        onConfirm={({ location, address }) => {
+          setFormLocation(location);
+          if (address) {
+            setFormAddress(address);
+          }
+          setShowAddressSuggestions(false);
+          setShowMapPicker(false);
+        }}
+      />
     </div>
   );
 }

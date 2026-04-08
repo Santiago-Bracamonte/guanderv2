@@ -40,13 +40,13 @@ export default function AdminSidebar({ open = false, onClose }: AdminSidebarProp
   return (
     <aside
       className={[
-        'w-[220px] min-w-[220px] bg-white flex flex-col border-r',
+        'w-[220px] min-w-[220px] flex flex-col border-r',
         // Mobile: fixed drawer
         'fixed md:static inset-y-0 left-0 z-40',
         'transition-transform duration-200 ease-in-out',
         open ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
       ].join(' ')}
-      style={{ borderColor: 'var(--guander-border)' }}
+      style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: '#123d31' }}
     >
       <nav className="flex-1 py-4 px-3 overflow-y-auto">
         {navItems.map((item) => {
@@ -58,17 +58,17 @@ export default function AdminSidebar({ open = false, onClose }: AdminSidebarProp
               onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors mb-0.5 no-underline ${
                 active
-                  ? 'text-[var(--guander-forest)]'
-                  : 'text-[var(--guander-ink)] hover:bg-[var(--guander-cream)]'
+                  ? 'text-white'
+                  : 'text-[rgba(255,255,255,0.82)] hover:bg-[rgba(255,255,255,0.08)]'
               }`}
-              style={active ? { backgroundColor: 'var(--guander-mint)' } : undefined}
+              style={active ? { backgroundColor: 'rgba(255,255,255,0.16)' } : undefined}
             >
               <item.icon size={18} strokeWidth={active ? 2.5 : 2} />
               <span className="flex-1">{item.label}</span>
               {item.badge && (
                 <span
                   className="text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold"
-                  style={{ backgroundColor: 'var(--guander-forest)' }}
+                  style={{ backgroundColor: '#0b2c22' }}
                 >
                   {item.badge}
                 </span>
@@ -78,10 +78,10 @@ export default function AdminSidebar({ open = false, onClose }: AdminSidebarProp
         })}
       </nav>
 
-      <div className="p-4 border-t text-xs" style={{ borderColor: 'var(--guander-border)' }}>
+      <div className="p-4 border-t text-xs" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
         <div className="flex justify-between py-1.5">
-          <span style={{ color: 'var(--guander-muted)' }}>Usuarios Online</span>
-          <span className="font-bold" style={{ color: 'var(--guander-ink)' }}>234</span>
+          <span style={{ color: 'rgba(255,255,255,0.7)' }}>Usuarios Online</span>
+          <span className="font-bold" style={{ color: '#ffffff' }}>234</span>
         </div>
         <div className="flex justify-between py-1.5">
           <span style={{ color: 'var(--guander-muted)' }}>Sistema</span>

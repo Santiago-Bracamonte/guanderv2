@@ -17,6 +17,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Guander",
   description: "Encuentra los mejores lugares petfriendly cerca de ti",
+  icons: {
+    icon: [
+      { url: "/Marcador.png", type: "image/png" },
+    ],
+    shortcut: ["/Marcador.png"],
+    apple: [{ url: "/Marcador.png" }],
+  },
 };
 
 export default function RootLayout({

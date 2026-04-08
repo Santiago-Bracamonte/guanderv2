@@ -1,6 +1,42 @@
 ﻿import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/cloudflare-d1';
 
+function parseLatLng(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const parts = raw.split(',').map((part) => Number(part.trim()));
+  if (parts.length !== 2) return null;
+  const [lat, lng] = parts;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat === 0 && lng === 0) return null;
+  return `${lat},${lng}`;
+}
+
+async function geocodeAddress(address: string): Promise<string | null> {
+  const query = address.trim();
+  if (!query) return null;
+
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'guander-admin-locales/1.0',
+      },
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
+    const first = data[0];
+    if (!first?.lat || !first?.lon) return null;
+    const lat = Number(first.lat);
+    const lng = Number(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return `${lat},${lng}`;
+  } catch {
+    return null;
+  }
+}
+
 async function ensureImageUrlColumn() {
   try {
     await queryD1('ALTER TABLE stores ADD COLUMN image_url TEXT', [], { revalidate: false });
@@ -15,7 +51,7 @@ export async function GET() {
       { revalidate: false },
     );
     return NextResponse.json({ success: true, data: stores });
-  } catch (e) {
+  } catch {
     return NextResponse.json({
       success: true,
       data: [
@@ -35,7 +71,7 @@ export async function POST(request: Request) {
     name?: string;
     description?: string;
     address?: string;
-    location?: string;
+    location?: string | null;
     fk_category?: number;
     stars?: number;
     user_email?: string;
@@ -86,6 +122,10 @@ export async function POST(request: Request) {
       if (subRows.length > 0) fk_store_sub_id = subRows[0].id_store_sub;
     } catch { /* use default 1 */ }
 
+    const manualLocation = parseLatLng(location ?? null);
+    const geocodedLocation = manualLocation ? null : await geocodeAddress(address ?? '');
+    const locationToSave = manualLocation ?? geocodedLocation ?? '0,0';
+
     await queryD1(
       `INSERT INTO stores (name, description, address, location, stars, fk_user, fk_category, fk_schedule, fk_store_sub_id, image_url)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -93,7 +133,7 @@ export async function POST(request: Request) {
         name,
         description ?? '',
         address ?? '',
-        location ?? '0,0',
+        locationToSave,
         stars ?? 0,
         fk_user,
         fk_category ?? 1,
@@ -123,6 +163,7 @@ export async function PUT(request: Request) {
     name?: string;
     description?: string;
     address?: string;
+    location?: string | null;
     stars?: number;
     fk_category?: number;
     image_url?: string;
@@ -140,15 +181,46 @@ export async function PUT(request: Request) {
   try {
     await ensureImageUrlColumn();
 
+    const currentRows = await queryD1<{
+      name: string | null;
+      description: string | null;
+      address: string | null;
+      location: string | null;
+      stars: number | null;
+      fk_category: number | null;
+      image_url: string | null;
+    }>(
+      'SELECT name, description, address, location, stars, fk_category, image_url FROM stores WHERE id_store = ? LIMIT 1',
+      [body.id_store],
+      { revalidate: false },
+    );
+
+    const current = currentRows[0];
+    if (!current) {
+      return NextResponse.json({ error: 'Local no encontrado' }, { status: 404 });
+    }
+
+    const nextName = body.name ?? current.name;
+    const nextDescription = body.description ?? current.description;
+    const nextAddress = body.address ?? current.address;
+    const nextStars = body.stars ?? current.stars;
+    const nextCategory = body.fk_category ?? current.fk_category;
+    const nextImage = body.image_url ?? current.image_url;
+
+    const manualLocation = parseLatLng(body.location ?? current.location);
+    const geocodedLocation = manualLocation ? null : await geocodeAddress(nextAddress ?? '');
+    const locationToSave = manualLocation ?? geocodedLocation ?? '0,0';
+
     await queryD1(
-      'UPDATE stores SET name = ?, description = ?, address = ?, stars = ?, fk_category = ?, image_url = ? WHERE id_store = ?',
+      'UPDATE stores SET name = ?, description = ?, address = ?, location = ?, stars = ?, fk_category = ?, image_url = ? WHERE id_store = ?',
       [
-        body.name ?? null,
-        body.description ?? null,
-        body.address ?? null,
-        body.stars ?? null,
-        body.fk_category ?? null,
-        body.image_url ?? null,
+        nextName,
+        nextDescription,
+        nextAddress,
+        locationToSave,
+        nextStars,
+        nextCategory,
+        nextImage,
         body.id_store,
       ],
       { revalidate: false },

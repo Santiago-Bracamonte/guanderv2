@@ -57,6 +57,7 @@ export default function HeroBanner() {
         >
           {/* Left: copy */}
           <Box sx={{ maxWidth: { xs: '100%', lg: 560 }, textAlign: { xs: 'center', lg: 'left' } }}>
+           
             <Typography
               variant="h1"
               sx={{
@@ -147,32 +148,12 @@ export default function HeroBanner() {
               boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
             }}
           >
-            <Box sx={{ position: 'relative', width: 112, height: 112 }}>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  bgcolor: 'rgba(255,255,255,0.35)',
-                }}
-              />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: '50%',
-                  transform: 'translateX(-50%) rotate(12deg)',
-                  width: 80,
-                  height: 80,
-                  borderRadius: '40%',
-                  bgcolor: 'rgba(255,255,255,0.25)',
-                }}
-              />
-            </Box>
+            <Box
+              component="img"
+              src="/LogoGuander.png"
+              alt="Logo Guander"
+              sx={{ width: 160, height: 160, objectFit: 'cover', borderRadius: '1.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}
+            />
           </Box>
         </Box>
       </Container>

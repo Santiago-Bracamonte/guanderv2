@@ -55,10 +55,10 @@ type MarkerPoint = {
 };
 
 const guanderIcon = L.icon({
-  iconUrl: "/guander-marker.svg",
-  iconSize: [36, 48],
-  iconAnchor: [18, 48],
-  popupAnchor: [0, -42],
+  iconUrl: "/Marcador.png",
+  iconSize: [52, 52],
+  iconAnchor: [26, 32],
+  popupAnchor: [0, -28],
 });
 
 function parseLatLng(raw: string | null): { lat: number; lng: number } | null {

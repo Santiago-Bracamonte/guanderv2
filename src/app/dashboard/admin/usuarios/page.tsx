@@ -2,10 +2,10 @@
 import UsuariosClient, { type UserItem } from './UsuariosClient';
 
 interface UserRow {
-  id?: number;
+  id_user?: number;
   name?: string;
   email?: string;
-  created_at?: string;
+  date_reg?: string;
 }
 
 export default async function UsuariosPage() {
@@ -14,17 +14,25 @@ export default async function UsuariosPage() {
 
   try {
     const rows = await queryD1<UserRow>(
-      'SELECT * FROM users ORDER BY 1 DESC LIMIT 20',
+      `SELECT
+         u.id_user,
+         TRIM(COALESCE(ud.name, '') || ' ' || COALESCE(ud.last_name, '')) AS name,
+         COALESCE(ud.email, u.username, '') AS email,
+         u.date_reg
+       FROM users u
+       LEFT JOIN user_data ud ON ud.id_user_data = u.fk_user_data
+       ORDER BY u.id_user DESC
+       LIMIT 20`,
       [],
       { revalidate: false },
     );
     const countResult = await queryD1<{ count: number }>('SELECT COUNT(*) as count FROM users', [], { revalidate: false });
     totalUsers = countResult[0]?.count ?? rows.length;
     users = rows.map((r) => ({
-      id: r.id ?? 0,
-      name: r.name ?? 'Sin nombre',
+      id: r.id_user ?? 0,
+      name: (r.name && r.name.trim().length > 0) ? r.name.trim() : 'Sin nombre',
       email: r.email ?? '',
-      created_at: r.created_at ?? '—',
+      created_at: r.date_reg ?? '—',
     }));
   } catch {
     totalUsers = 2847;

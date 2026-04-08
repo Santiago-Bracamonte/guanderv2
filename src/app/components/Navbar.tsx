@@ -41,9 +41,12 @@ export default function Navbar() {
           href="/"
           sx={{ display: "flex", alignItems: "center", gap: 1, textDecoration: "none" }}
         >
-          <Typography sx={{ color: "#43D696", fontSize: "1.5rem", lineHeight: 1, fontWeight: 900 }}>
-            ✶
-          </Typography>
+          <Box
+            component="img"
+            src="/Marcador.png"
+            alt="Logo Guander"
+            sx={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.2))" }}
+          />
           <Typography variant="h6" sx={{ color: "white", fontWeight: 800, letterSpacing: "-0.02em" }}>
             Guander
           </Typography>

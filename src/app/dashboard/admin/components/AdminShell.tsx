@@ -17,7 +17,18 @@ export default function AdminShell({ adminName, adminRole, children }: AdminShel
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--guander-cream)' }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        backgroundColor: '#eef4f0',
+        ['--guander-forest' as string]: '#0f3b2f',
+        ['--guander-ink' as string]: '#102920',
+        ['--guander-cream' as string]: '#eef4f0',
+        ['--guander-mint' as string]: '#d6e7de',
+        ['--guander-border' as string]: '#c7d8cf',
+        ['--guander-muted' as string]: '#5a766a',
+      }}
+    >
       <AdminNavbar adminName={adminName} adminRole={adminRole} onMenuClick={toggleSidebar} />
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile backdrop */}
