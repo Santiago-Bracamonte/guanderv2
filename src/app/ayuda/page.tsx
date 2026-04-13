@@ -3,6 +3,12 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import MuiLink from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
+import SearchIcon from '@mui/icons-material/Search';
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 
 export const metadata = {
   title: 'Centro de ayuda | Guander',
@@ -10,42 +16,42 @@ export const metadata = {
 
 const topics = [
   {
-    icon: '🐾',
+    icon: <SearchIcon sx={{ fontSize: 28, color: '#43D696' }} />,
     title: 'Buscar locales y servicios',
     description:
       'Explorá el mapa interactivo para encontrar locales pet-friendly cerca de vos. Podés filtrar por categoría, distancia o nombre del negocio.',
     link: { label: 'Ir al inicio', href: '/' },
   },
   {
-    icon: '🏪',
+    icon: <StorefrontIcon sx={{ fontSize: 28, color: '#43D696' }} />,
     title: 'Registrar mi local',
     description:
       'Si sos dueño de un local o profesional de servicios para mascotas, podés sumarte a Guander de forma rápida y sencilla.',
     link: { label: 'Ver cómo adherirse', href: '/como-adherirse' },
   },
   {
-    icon: '🎟️',
+    icon: <LocalOfferIcon sx={{ fontSize: 28, color: '#43D696' }} />,
     title: 'Beneficios y cupones',
     description:
       'Los usuarios de Guander acceden a descuentos exclusivos en locales afiliados. Los cupones se muestran en la sección de Ofertas de la página principal.',
     link: null,
   },
   {
-    icon: '💬',
+    icon: <ChatBubbleOutlineIcon sx={{ fontSize: 28, color: '#43D696' }} />,
     title: 'Sistema de mensajería',
     description:
       'Los usuarios pueden enviar mensajes directamente a los locales desde su perfil. Los locales responden desde su panel de administración.',
     link: null,
   },
   {
-    icon: '🔐',
+    icon: <LockOutlinedIcon sx={{ fontSize: 28, color: '#43D696' }} />,
     title: 'Seguridad de cuenta',
     description:
       'Si tenés problemas para acceder, podés restablecer tu contraseña desde la pantalla de inicio de sesión. Para problemas de seguridad graves, contáctanos.',
     link: { label: 'Ir al login', href: '/login' },
   },
   {
-    icon: '📋',
+    icon: <LayersOutlinedIcon sx={{ fontSize: 28, color: '#43D696' }} />,
     title: 'Planes y suscripciones',
     description:
       'Los locales cuentan con distintos planes de visibilidad. Podés ver los detalles y decidir qué plan se adapta mejor a tu negocio.',
@@ -87,7 +93,7 @@ export default function AyudaPage() {
                 '&:hover': { borderColor: 'rgba(67,214,150,0.3)' },
               }}
             >
-              <Typography sx={{ fontSize: '1.75rem' }}>{topic.icon}</Typography>
+              <Box>{topic.icon}</Box>
               <Typography sx={{ color: 'white', fontWeight: 700, fontSize: '1rem' }}>
                 {topic.title}
               </Typography>

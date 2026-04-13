@@ -3,6 +3,11 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import RoomOutlinedIcon from '@mui/icons-material/RoomOutlined';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
+import StarOutlineIcon from '@mui/icons-material/StarOutline';
 
 export const metadata = {
   title: 'Cómo adherirse | Guander',
@@ -42,11 +47,11 @@ const steps = [
 ];
 
 const benefits = [
-  { icon: '📍', text: 'Aparecé en el mapa de locales pet-friendly de tu ciudad' },
-  { icon: '🎟️', text: 'Publicá cupones y promociones exclusivas para usuarios Guander' },
-  { icon: '💬', text: 'Comunicación directa con clientes potenciales' },
-  { icon: '📊', text: 'Estadísticas de visitas a tu perfil' },
-  { icon: '⭐', text: 'Mayor visibilidad frente a miles de dueños de mascotas' },
+  { icon: <RoomOutlinedIcon sx={{ fontSize: 20, color: '#43D696' }} />, text: 'Aparecé en el mapa de locales pet-friendly de tu ciudad' },
+  { icon: <LocalOfferIcon sx={{ fontSize: 20, color: '#43D696' }} />, text: 'Publicá cupones y promociones exclusivas para usuarios Guander' },
+  { icon: <ChatBubbleOutlineIcon sx={{ fontSize: 20, color: '#43D696' }} />, text: 'Comunicación directa con clientes potenciales' },
+  { icon: <BarChartOutlinedIcon sx={{ fontSize: 20, color: '#43D696' }} />, text: 'Estadísticas de visitas a tu perfil' },
+  { icon: <StarOutlineIcon sx={{ fontSize: 20, color: '#43D696' }} />, text: 'Mayor visibilidad frente a miles de dueños de mascotas' },
 ];
 
 export default function ComoAdherirse() {
@@ -126,7 +131,7 @@ export default function ComoAdherirse() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mb: 8 }}>
           {benefits.map((b) => (
             <Box key={b.text} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography sx={{ fontSize: '1.4rem' }}>{b.icon}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>{b.icon}</Box>
               <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.95rem' }}>{b.text}</Typography>
             </Box>
           ))}

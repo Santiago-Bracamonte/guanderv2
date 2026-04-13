@@ -122,13 +122,13 @@ export default function Register() {
           </p>
           <div className="flex flex-col gap-3 mt-8">
             {[
-              { icon: "🏪", text: "Gestión de locales y servicios" },
-              { icon: "🎟️", text: "Cupones y promociones propias" },
-              { icon: "📊", text: "Estadísticas en tiempo real" },
-              { icon: "💳", text: "Planes de suscripción flexibles" },
-            ].map(({ icon, text }) => (
+              { text: "Gestión de locales y servicios" },
+              { text: "Cupones y promociones propias" },
+              { text: "Estadísticas en tiempo real" },
+              { text: "Planes de suscripción flexibles" },
+            ].map(({ text }) => (
               <div key={text} className="flex items-center gap-3">
-                <span className="text-xl">{icon}</span>
+                <span className="text-emerald-400 font-bold text-base leading-none">→</span>
                 <span className="text-emerald-100 text-sm">{text}</span>
               </div>
             ))}
@@ -280,20 +280,19 @@ export default function Register() {
               </label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { value: "professional", label: "Profesional", icon: "👤" },
-                  { value: "store_owner", label: "Local / Tienda", icon: "🏪" },
+                  { value: "professional", label: "Profesional" },
+                  { value: "store_owner", label: "Local / Tienda" },
                 ].map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
                     onClick={() => setRole(opt.value)}
-                    className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 text-sm font-semibold transition-all ${
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 text-sm font-semibold transition-all ${
                       role === opt.value
                         ? "border-emerald-500 bg-emerald-50 text-emerald-800"
                         : "border-gray-200 text-gray-600 hover:border-gray-300"
                     }`}
                   >
-                    <span>{opt.icon}</span>
                     {opt.label}
                   </button>
                 ))}
