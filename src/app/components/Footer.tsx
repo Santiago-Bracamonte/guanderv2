@@ -5,16 +5,16 @@ import MuiLink from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
 
 const legalLinks = [
-  { label: "Términos y condiciones", href: "#" },
-  { label: "Política de privacidad", href: "#" },
-  { label: "Preguntas Frecuentes", href: "#" },
-  { label: "Contacto", href: "#" },
+  { label: "Términos y condiciones", href: "/terminos" },
+  { label: "Política de privacidad", href: "/privacidad" },
+  { label: "Preguntas Frecuentes", href: "/faq" },
+  { label: "Contacto", href: "/#contacto" },
 ];
 
 const professionalLinks = [
-  { label: "Registrar mi local", href: "#" },
-  { label: "Cómo adherirse", href: "#" },
-  { label: "Centro de ayuda", href: "#" },
+  { label: "Registrar mi local", href: "/register" },
+  { label: "Cómo adherirse", href: "/como-adherirse" },
+  { label: "Centro de ayuda", href: "/ayuda" },
 ];
 
 const socialIcons = [

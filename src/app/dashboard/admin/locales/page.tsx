@@ -1,4 +1,4 @@
-﻿import { queryD1 } from '@/lib/cloudflare-d1';
+import { queryD1 } from '@/lib/cloudflare-d1';
 import LocalesClient, { type LocaleItem } from './LocalesClient';
 
 const CATEGORY_LABELS: Record<number, string> = {

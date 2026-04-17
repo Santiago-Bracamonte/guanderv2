@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Box from '@mui/material/Box';
@@ -63,7 +63,9 @@ export default function StatsBarClient({ stats }: { stats: StatItem[] }) {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(2, 1fr)' },
+          maxWidth: 480,
+          mx: 'auto',
             gap: 3,
           }}
         >

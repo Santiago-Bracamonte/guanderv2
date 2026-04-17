@@ -1,4 +1,4 @@
-﻿import { queryD1 } from '@/lib/cloudflare-d1';
+import { queryD1 } from '@/lib/cloudflare-d1';
 import PlanesClient, { type SubscriptionItem } from './PlanesClient';
 
 interface SubscriptionRow extends SubscriptionItem {

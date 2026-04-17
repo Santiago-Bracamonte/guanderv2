@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;

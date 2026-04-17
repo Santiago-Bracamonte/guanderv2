@@ -1,4 +1,4 @@
-﻿import { queryD1 } from '@/lib/cloudflare-d1';
+import { queryD1 } from '@/lib/cloudflare-d1';
 import UsuariosClient, { type UserItem } from './UsuariosClient';
 
 interface UserRow {
