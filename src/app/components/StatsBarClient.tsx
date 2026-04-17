@@ -58,7 +58,7 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
 
 export default function StatsBarClient({ stats }: { stats: StatItem[] }) {
   return (
-    <Box component="section" sx={{ bgcolor: '#1a1b3c', width: '100%' }}>
+    <Box component="section" sx={{ bgcolor: '#0f2f24', width: '100%' }}>
       <Container maxWidth="xl" sx={{ px: { xs: 3, sm: 4 }, py: 5 }}>
         <Box
           sx={{

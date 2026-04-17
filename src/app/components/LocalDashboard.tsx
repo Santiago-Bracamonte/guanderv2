@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { CloudflareD1Error, queryD1 } from "@/lib/cloudflare-d1";
 import { verifyToken } from "@/lib/auth";
+import { ensureSubscriptionBenefitsColumn } from "@/lib/subscription-benefits";
 import LocalDashboardClient from "../dashboard/store/LocalDashboardClient";
 import type {
   BenefitRow,
@@ -19,6 +20,8 @@ import type {
 type NumberRow = { value: number | null };
 
 async function loadDashboardData(userId: number): Promise<DashboardData | null> {
+  await ensureSubscriptionBenefitsColumn();
+
   const stores = await queryD1<StoreSummaryRow>(
     `SELECT
       s.id_store,
@@ -32,6 +35,7 @@ async function loadDashboardData(userId: number): Promise<DashboardData | null> 
       c.name AS category_name,
       sub.name AS plan_name,
       sub.amount AS plan_amount,
+      sub.plan_benefits AS plan_benefits,
       sub.state AS plan_state,
       ss.expiration_date AS plan_expiration_date,
       ss.state_payout AS payout_state
@@ -221,9 +225,9 @@ async function loadDashboardData(userId: number): Promise<DashboardData | null> 
       [store.id_store]
     ),
     queryD1<SubscriptionPlanOption>(
-      `SELECT id_subscription, name, description, state, amount
+      `SELECT id_subscription, name, description, state, amount, plan_benefits
        FROM subscription
-       WHERE state = 1
+       WHERE LOWER(state) = 'activo'
        ORDER BY amount ASC`,
       []
     ),

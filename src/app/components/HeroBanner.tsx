@@ -34,7 +34,7 @@ export default function HeroBanner() {
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(135deg, rgba(30,45,160,0.82) 0%, rgba(40,120,190,0.72) 55%, rgba(30,160,130,0.68) 100%)',
+          background: 'linear-gradient(140deg, rgba(9,46,34,0.82) 0%, rgba(18,103,74,0.72) 58%, rgba(67,214,150,0.52) 100%)',
           zIndex: 1,
         }}
       />
@@ -100,7 +100,7 @@ export default function HeroBanner() {
                 size="large"
                 sx={{
                   bgcolor: 'white',
-                  color: '#1a1b3c',
+                  color: '#123a2f',
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   fontSize: '0.75rem',
@@ -141,10 +141,10 @@ export default function HeroBanner() {
               borderRadius: '2rem',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(255,255,255,0.18)',
+              background: 'rgba(194,255,226,0.2)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255,255,255,0.3)',
+              border: '1px solid rgba(224,255,240,0.4)',
               boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
             }}
           >

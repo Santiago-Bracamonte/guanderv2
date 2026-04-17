@@ -16,8 +16,8 @@ import RoomOutlinedIcon from '@mui/icons-material/RoomOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 
 const TAG_GRADIENTS: Record<string, string> = {
-  Tienda: 'linear-gradient(135deg, #2e7d32 0%, #43a047 100%)',
-  Profesional: 'linear-gradient(135deg, #1565c0 0%, #42a5f5 100%)',
+  Tienda: 'linear-gradient(135deg, #166534 0%, #4ade80 100%)',
+  Profesional: 'linear-gradient(135deg, #14532d 0%, #22c55e 100%)',
 };
 
 export interface OfferCardItem {
@@ -69,7 +69,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
       {/* Filter bar */}
       <Card
         variant="outlined"
-        sx={{ mb: 3, border: '1px solid', borderColor: 'rgba(61,82,213,0.12)' }}
+        sx={{ mb: 3, border: '1px solid', borderColor: 'rgba(22,101,52,0.14)' }}
       >
         <CardContent sx={{ p: { xs: 2.5, sm: 3 }, '&:last-child': { pb: { xs: 2.5, sm: 3 } } }}>
           <Box
@@ -84,7 +84,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
           >
             <Typography
               variant="subtitle1"
-              sx={{ color: 'primary.main', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.75rem' }}
+              sx={{ color: '#14532d', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.75rem' }}
             >
               Filtrar beneficios
             </Typography>
@@ -124,13 +124,13 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
               variant="outlined"
               sx={{
                 border: '1px solid',
-                borderColor: 'rgba(61,82,213,0.1)',
+                borderColor: 'rgba(22,101,52,0.12)',
                 bgcolor: 'background.paper',
                 overflow: 'hidden',
                 transition: 'transform 0.25s, box-shadow 0.25s',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: '0 8px 28px rgba(61,82,213,0.12)',
+                  boxShadow: '0 8px 28px rgba(22,101,52,0.14)',
                 },
               }}
             >
@@ -240,7 +240,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
             p: 5,
             textAlign: 'center',
             border: '2px dashed',
-            borderColor: 'rgba(61,82,213,0.15)',
+            borderColor: 'rgba(22,101,52,0.2)',
             borderRadius: 3,
           }}
         >

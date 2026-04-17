@@ -116,7 +116,7 @@ export default function Navbar() {
       <Collapse in={mobileOpen}>
         <Box
           sx={{
-            bgcolor: "rgba(30, 40, 160, 0.97)",
+            bgcolor: "rgba(10, 59, 43, 0.97)",
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
             borderTop: "1px solid rgba(255,255,255,0.1)",

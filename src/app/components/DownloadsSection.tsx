@@ -10,7 +10,7 @@ export default function DownloadsSection() {
       component="section"
       sx={{
         position: 'relative',
-        bgcolor: '#1a1b3c',
+        bgcolor: '#0f2f24',
         overflow: 'hidden',
         py: { xs: 8, md: 12 },
         width: '100%',
@@ -38,7 +38,7 @@ export default function DownloadsSection() {
           width: '50%',
           height: '70%',
           borderRadius: '50%',
-          bgcolor: 'rgba(61,82,213,0.08)',
+          bgcolor: 'rgba(134,239,172,0.12)',
           filter: 'blur(80px)',
           pointerEvents: 'none',
         }}
@@ -78,7 +78,7 @@ export default function DownloadsSection() {
           startIcon={<PhoneAndroidIcon />}
           sx={{
             bgcolor: 'white',
-            color: '#1a1b3c',
+            color: '#123a2f',
             fontWeight: 800,
             fontSize: '1rem',
             px: 4,

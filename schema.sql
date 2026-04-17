@@ -8,7 +8,8 @@ CREATE TABLE subscription (
   name             TEXT NOT NULL,
   description      TEXT NOT NULL,
   state            TEXT NOT NULL,
-  amount           REAL NOT NULL
+  amount           REAL NOT NULL,
+  plan_benefits    TEXT
 );
 CREATE TABLE schedule (
   id_schedule  INTEGER PRIMARY KEY AUTOINCREMENT,

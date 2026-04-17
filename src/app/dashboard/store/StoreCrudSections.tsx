@@ -63,6 +63,20 @@ type CouponItem = CouponRow & {
   fk_coupon_state: number;
 };
 
+type CouponServiceOption = {
+  id_professional: number;
+  service_name: string;
+  accept_point: number;
+};
+
+type ConsumptionFormItem = {
+  idProfessional: number;
+  serviceName: string;
+  quantity: number;
+  unitAmount: number;
+  acceptPoint: boolean;
+};
+
 function money(value: number): string {
   return new Intl.NumberFormat("es-CO", {
     style: "currency",
@@ -95,12 +109,11 @@ function toCodeChunk(value: string, fallback: string): string {
 }
 
 function ensureGuanderCode(codeCoupon: string, couponName?: string): string {
-  if (codeCoupon.startsWith("GUANDER-")) {
+  if (/^GUANDER-[A-Z0-9]+$/.test(codeCoupon.toUpperCase())) {
     return codeCoupon;
   }
-  const namePart = toCodeChunk(couponName ?? "CUPON", "CUPON");
-  const codePart = toCodeChunk(codeCoupon, "CODIGO");
-  return `GUANDER-LOCAL-${namePart}-${codePart}`;
+  const codePart = toCodeChunk(codeCoupon || couponName || "CODIGO", "CODIGO");
+  return `GUANDER-${codePart}`;
 }
 
 function DeleteConfirmDialog({
@@ -596,6 +609,7 @@ export function StoreCouponsCrudSection({
   initialCoupons: CouponRow[];
   couponConsumptions: CouponConsumptionRow[];
 }) {
+  const PAGE_SIZE = 10;
   const [coupons, setCoupons] = useState<CouponItem[]>(
     initialCoupons.map((coupon) => ({
       ...coupon,
@@ -606,9 +620,21 @@ export function StoreCouponsCrudSection({
   const [couponStates, setCouponStates] = useState<CouponStateOption[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [consumptionError, setConsumptionError] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [selectedQrCode, setSelectedQrCode] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [serviceOptions, setServiceOptions] = useState<CouponServiceOption[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedServiceQty, setSelectedServiceQty] = useState("1");
+  const [selectedServiceAmount, setSelectedServiceAmount] = useState("");
+  const [consumptionItems, setConsumptionItems] = useState<ConsumptionFormItem[]>([]);
+  const [customerSummary, setCustomerSummary] = useState<{ name: string; email: string } | null>(null);
   const [pendingDeleteCoupon, setPendingDeleteCoupon] = useState<CouponItem | null>(null);
+  const [couponPage, setCouponPage] = useState(1);
+  const [couponPageInput, setCouponPageInput] = useState("1");
+  const [consumptionPage, setConsumptionPage] = useState(1);
+  const [consumptionPageInput, setConsumptionPageInput] = useState("1");
 
   const [form, setForm] = useState({
     name: "",
@@ -641,14 +667,74 @@ export function StoreCouponsCrudSection({
     setCouponStates(json.data.couponStates);
   }
 
+  async function loadServiceOptions() {
+    setConsumptionError("");
+    const res = await fetch("/api/store/services", { cache: "no-store" });
+    const json = await readJson<{
+      error?: string;
+      data?: {
+        services: CouponServiceOption[];
+      };
+    }>(res);
+
+    if (!res.ok || !json.data) {
+      setConsumptionError(json.error ?? "No se pudieron cargar los servicios del local");
+      return;
+    }
+
+    const deduped = Array.from(
+      new Map(
+        json.data.services.map((service) => [service.service_name.toLowerCase(), service]),
+      ).values(),
+    );
+    setServiceOptions(deduped);
+  }
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadCoupons();
+    void loadServiceOptions();
   }, []);
 
   const effectiveStateId = useMemo(() => {
     if (form.couponStateId) return form.couponStateId;
     return couponStates[0] ? String(couponStates[0].id_coupon_state) : "";
   }, [form.couponStateId, couponStates]);
+
+  const couponTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(coupons.length / PAGE_SIZE)),
+    [coupons.length],
+  );
+
+  const consumptionTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(couponConsumptions.length / PAGE_SIZE)),
+    [couponConsumptions.length],
+  );
+
+  const safeCouponPage = Math.min(couponPage, couponTotalPages);
+  const safeConsumptionPage = Math.min(consumptionPage, consumptionTotalPages);
+
+  const paginatedCoupons = useMemo(() => {
+    const start = (safeCouponPage - 1) * PAGE_SIZE;
+    return coupons.slice(start, start + PAGE_SIZE);
+  }, [coupons, safeCouponPage]);
+
+  const paginatedCouponConsumptions = useMemo(() => {
+    const start = (safeConsumptionPage - 1) * PAGE_SIZE;
+    return couponConsumptions.slice(start, start + PAGE_SIZE);
+  }, [couponConsumptions, safeConsumptionPage]);
+
+  function changeCouponPage(next: number) {
+    const clamped = Math.min(Math.max(next, 1), couponTotalPages);
+    setCouponPage(clamped);
+    setCouponPageInput(String(clamped));
+  }
+
+  function changeConsumptionPage(next: number) {
+    const clamped = Math.min(Math.max(next, 1), consumptionTotalPages);
+    setConsumptionPage(clamped);
+    setConsumptionPageInput(String(clamped));
+  }
 
   async function handleSubmit() {
     setError("");
@@ -717,12 +803,167 @@ export function StoreCouponsCrudSection({
     });
   }
 
-  async function showQr(coupon: CouponItem) {
-    const displayCode = ensureGuanderCode(coupon.code_coupon, coupon.name);
-    const payload = JSON.stringify({ codeCoupon: displayCode, source: "guander-store" });
-    const dataUrl = await QRCode.toDataURL(payload, { width: 220, margin: 1 });
-    setSelectedQrCode(displayCode);
+  const selectedService = useMemo(() => {
+    if (!selectedServiceId) return null;
+    return serviceOptions.find((service) => service.id_professional === Number(selectedServiceId)) ?? null;
+  }, [selectedServiceId, serviceOptions]);
+
+  const consumptionSummary = useMemo(() => {
+    const subtotal = Number(
+      consumptionItems.reduce((acc, item) => acc + item.quantity * item.unitAmount, 0).toFixed(2),
+    );
+    const points = consumptionItems.reduce((acc, item) => {
+      if (!item.acceptPoint) return acc;
+      return acc + Math.floor((item.quantity * item.unitAmount) / 1000);
+    }, 0);
+    return { subtotal, points };
+  }, [consumptionItems]);
+
+  function addServiceToConsumption() {
+    setConsumptionError("");
+    if (!selectedService) {
+      setConsumptionError("Debes elegir un servicio");
+      return;
+    }
+
+    const quantity = Number(selectedServiceQty);
+    const unitAmount = Number(selectedServiceAmount);
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      setConsumptionError("La cantidad debe ser un numero entero mayor a 0");
+      return;
+    }
+
+    if (!Number.isFinite(unitAmount) || unitAmount <= 0) {
+      setConsumptionError("El monto unitario debe ser mayor a 0");
+      return;
+    }
+
+    if (consumptionItems.some((item) => item.idProfessional === selectedService.id_professional)) {
+      setConsumptionError("Ese servicio ya fue agregado a la lista");
+      return;
+    }
+
+    setConsumptionItems((prev) => [
+      ...prev,
+      {
+        idProfessional: selectedService.id_professional,
+        serviceName: selectedService.service_name,
+        quantity,
+        unitAmount: Number(unitAmount.toFixed(2)),
+        acceptPoint: selectedService.accept_point === 1,
+      },
+    ]);
+    setSelectedServiceId("");
+    setSelectedServiceQty("1");
+    setSelectedServiceAmount("");
+  }
+
+  function clearConsumptionForm() {
+    setCustomerEmail("");
+    setSelectedServiceId("");
+    setSelectedServiceQty("1");
+    setSelectedServiceAmount("");
+    setConsumptionItems([]);
+    setConsumptionError("");
+    setCustomerSummary(null);
+    setQrDataUrl("");
+    setSelectedQrCode("");
+  }
+
+  async function generateConsumptionQr() {
+    setConsumptionError("");
+
+    if (!customerEmail.trim()) {
+      setConsumptionError("El email del cliente es obligatorio");
+      return;
+    }
+
+    if (consumptionItems.length === 0) {
+      setConsumptionError("Agrega al menos un servicio antes de generar el QR");
+      return;
+    }
+
+    const payload = {
+      customerEmail: customerEmail.trim(),
+      items: consumptionItems.map((item) => ({
+        idProfessional: item.idProfessional,
+        quantity: item.quantity,
+        unitAmount: item.unitAmount,
+      })),
+    };
+
+    const res = await fetch("/api/store/coupons/consumption-qr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await readJson<{
+      error?: string;
+      data?: {
+        consumptionCode: string;
+        customerName: string;
+        customerEmail: string;
+        subtotal: number;
+        pointsEarn: number;
+        qrPayload: unknown;
+      };
+    }>(res);
+
+    if (!res.ok || !json.data) {
+      setConsumptionError(json.error ?? "No se pudo generar el codigo QR de consumo");
+      return;
+    }
+
+    const dataUrl = await QRCode.toDataURL(JSON.stringify(json.data.qrPayload), {
+      width: 220,
+      margin: 1,
+    });
+
+    setSelectedQrCode(json.data.consumptionCode);
     setQrDataUrl(dataUrl);
+    setCustomerSummary({
+      name: json.data.customerName,
+      email: json.data.customerEmail,
+    });
+  }
+
+  function handleDownloadQr() {
+    if (!qrDataUrl) return;
+    const link = document.createElement("a");
+    link.href = qrDataUrl;
+    link.download = `${selectedQrCode || "qr-consumo"}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function handlePrintQr() {
+    if (!qrDataUrl) return;
+    const printWindow = window.open("", "_blank", "width=420,height=520");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Imprimir QR</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; text-align: center; }
+            img { width: 260px; height: 260px; }
+            p { margin-top: 14px; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <img src="${qrDataUrl}" alt="QR" />
+          <p>${selectedQrCode || "Codigo QR"}</p>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   }
 
   return (
@@ -806,7 +1047,7 @@ export function StoreCouponsCrudSection({
                   <TableCell colSpan={6}>Aun no has creado cupones.</TableCell>
                 </TableRow>
               )}
-              {coupons.map((coupon) => (
+              {paginatedCoupons.map((coupon) => (
                 <TableRow key={coupon.id_coupon}>
                   <TableCell>
                     <Typography variant="body2" fontWeight={700}>{coupon.name}</Typography>
@@ -827,9 +1068,6 @@ export function StoreCouponsCrudSection({
                       <Button size="small" variant="outlined" onClick={() => startEdit(coupon)}>
                         Editar
                       </Button>
-                      <Button size="small" variant="outlined" onClick={() => void showQr(coupon)}>
-                        QR
-                      </Button>
                       <Button
                         size="small"
                         color="error"
@@ -844,6 +1082,47 @@ export function StoreCouponsCrudSection({
               ))}
             </TableBody>
           </Table>
+
+          {coupons.length > 0 && (
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", md: "center" }}
+              spacing={1}
+              sx={{ mt: 1.4 }}
+            >
+              <Typography variant="caption" sx={{ color: "#4b675b" }}>
+                Pagina {safeCouponPage} de {couponTotalPages} · {coupons.length} registros
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button size="small" variant="outlined" disabled={safeCouponPage === 1} onClick={() => changeCouponPage(safeCouponPage - 1)}>
+                  Anterior
+                </Button>
+                <TextField
+                  size="small"
+                  label="Pagina"
+                  value={couponPageInput}
+                  onChange={(e) => setCouponPageInput(e.target.value)}
+                  sx={{ width: 100 }}
+                  inputProps={{ inputMode: "numeric" }}
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    const parsed = Number(couponPageInput);
+                    if (!Number.isInteger(parsed)) return;
+                    changeCouponPage(parsed);
+                  }}
+                >
+                  Ir
+                </Button>
+                <Button size="small" variant="outlined" disabled={safeCouponPage >= couponTotalPages} onClick={() => changeCouponPage(safeCouponPage + 1)}>
+                  Siguiente
+                </Button>
+              </Stack>
+            </Stack>
+          )}
 
           <DeleteConfirmDialog
             open={Boolean(pendingDeleteCoupon)}
@@ -863,11 +1142,146 @@ export function StoreCouponsCrudSection({
       <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
         <CardContent>
           <Typography variant="h6" color="#173a2d">
-            Codigo QR del cupon
+            Generar QR de consumo
           </Typography>
           <Typography variant="body2" sx={{ mt: 0.5 }}>
-            QR generado para compartir y canjear por codigo de cupon.
+            Agrega servicios del local, define cantidades y monto por item, y genera un QR asociado al cliente por email.
           </Typography>
+
+          {consumptionError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {consumptionError}
+            </Alert>
+          )}
+
+          <Box sx={{ mt: 2, display: "grid", gap: 1.2, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" } }}>
+            <TextField
+              required
+              label="Email del cliente"
+              placeholder="cliente@email.com"
+              size="small"
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+            />
+            <FormControl size="small" fullWidth>
+              <InputLabel id="consumption-service-label">Servicio</InputLabel>
+              <Select
+                labelId="consumption-service-label"
+                label="Servicio"
+                value={selectedServiceId}
+                onChange={(e) => setSelectedServiceId(e.target.value)}
+              >
+                {serviceOptions.map((service) => (
+                  <MenuItem key={service.id_professional} value={String(service.id_professional)}>
+                    {service.service_name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Cantidad"
+              type="number"
+              size="small"
+              value={selectedServiceQty}
+              onChange={(e) => setSelectedServiceQty(e.target.value)}
+              inputProps={{ min: 1, step: 1 }}
+            />
+            <TextField
+              label="Monto unitario"
+              type="number"
+              size="small"
+              value={selectedServiceAmount}
+              onChange={(e) => setSelectedServiceAmount(e.target.value)}
+              inputProps={{ min: 1, step: 0.01 }}
+            />
+          </Box>
+
+          {selectedService && (
+            <Typography variant="caption" sx={{ mt: 1, display: "block", color: "#4b675b" }}>
+              {selectedService.accept_point === 1
+                ? "Este servicio acumula puntos de consumo."
+                : "Este servicio no acumula puntos."}
+            </Typography>
+          )}
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.6 }}>
+            <Button variant="outlined" onClick={addServiceToConsumption}>
+              Agregar a la lista
+            </Button>
+            <Button variant="contained" sx={{ bgcolor: "#1f4b3b" }} onClick={() => void generateConsumptionQr()}>
+              Generar codigo QR
+            </Button>
+            <Button variant="outlined" color="inherit" onClick={clearConsumptionForm}>
+              Limpiar todo
+            </Button>
+          </Stack>
+
+          <Paper variant="outlined" sx={{ mt: 2, borderColor: "#d6e4da", borderRadius: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Servicio</TableCell>
+                  <TableCell align="right">Cantidad</TableCell>
+                  <TableCell align="right">Unitario</TableCell>
+                  <TableCell align="right">Subtotal</TableCell>
+                  <TableCell align="right">Puntos</TableCell>
+                  <TableCell align="center">Accion</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {consumptionItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6}>Aun no agregaste servicios al consumo.</TableCell>
+                  </TableRow>
+                )}
+                {consumptionItems.map((item) => {
+                  const lineTotal = item.quantity * item.unitAmount;
+                  const linePoints = item.acceptPoint ? Math.floor(lineTotal / 1000) : 0;
+                  return (
+                    <TableRow key={item.idProfessional}>
+                      <TableCell>{item.serviceName}</TableCell>
+                      <TableCell align="right">{item.quantity}</TableCell>
+                      <TableCell align="right">{money(item.unitAmount)}</TableCell>
+                      <TableCell align="right">{money(lineTotal)}</TableCell>
+                      <TableCell align="right">{linePoints}</TableCell>
+                      <TableCell align="center">
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          onClick={() => {
+                            setConsumptionItems((prev) => prev.filter((entry) => entry.idProfessional !== item.idProfessional));
+                          }}
+                        >
+                          Quitar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Paper>
+
+          <Paper
+            sx={{
+              mt: 1.4,
+              p: 1.5,
+              borderRadius: 2,
+              bgcolor: "#eef5f0",
+              border: "1px solid #d6e4da",
+            }}
+          >
+            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1}>
+              <Typography variant="body2" fontWeight={700} color="#173a2d">
+                Resumen del consumo
+              </Typography>
+              <Typography variant="body2">Subtotal: {money(consumptionSummary.subtotal)}</Typography>
+              <Typography variant="body2" color="#173a2d" fontWeight={700}>
+                Puntos estimados: {consumptionSummary.points}
+              </Typography>
+            </Stack>
+          </Paper>
 
           <Paper
             sx={{
@@ -881,9 +1295,23 @@ export function StoreCouponsCrudSection({
               gap: 1,
             }}
           >
-            {qrDataUrl ? <img src={qrDataUrl} alt={`QR ${selectedQrCode}`} width={220} height={220} /> : <Typography variant="caption">Selecciona un cupon y presiona QR</Typography>}
-            {selectedQrCode && <Typography variant="body2">Codigo: {selectedQrCode}</Typography>}
+            {qrDataUrl ? <img src={qrDataUrl} alt={`QR ${selectedQrCode}`} width={220} height={220} /> : <Typography variant="caption">Completa el formulario y genera el QR de consumo</Typography>}
+            {selectedQrCode && <Typography variant="body2">Codigo de consumo: {selectedQrCode}</Typography>}
+            {customerSummary && (
+              <Typography variant="caption" sx={{ color: "#4b675b" }}>
+                Cliente asociado al consumo: {customerSummary.name} ({customerSummary.email})
+              </Typography>
+            )}
           </Paper>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.4 }}>
+            <Button variant="outlined" onClick={handlePrintQr} disabled={!qrDataUrl}>
+              Imprimir QR
+            </Button>
+            <Button variant="contained" sx={{ bgcolor: "#1f4b3b" }} onClick={handleDownloadQr} disabled={!qrDataUrl}>
+              Descargar QR
+            </Button>
+          </Stack>
         </CardContent>
       </Card>
 
@@ -911,7 +1339,7 @@ export function StoreCouponsCrudSection({
                   <TableCell colSpan={5}>Aun no hay consumos de cupones.</TableCell>
                 </TableRow>
               )}
-              {couponConsumptions.map((entry) => (
+              {paginatedCouponConsumptions.map((entry) => (
                 <TableRow key={entry.id_coupon_buy}>
                   <TableCell>{entry.customer_name} {entry.customer_last_name}</TableCell>
                   <TableCell>{entry.coupon_name}</TableCell>
@@ -922,6 +1350,47 @@ export function StoreCouponsCrudSection({
               ))}
             </TableBody>
           </Table>
+
+          {couponConsumptions.length > 0 && (
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", md: "center" }}
+              spacing={1}
+              sx={{ mt: 1.4 }}
+            >
+              <Typography variant="caption" sx={{ color: "#4b675b" }}>
+                Pagina {safeConsumptionPage} de {consumptionTotalPages} · {couponConsumptions.length} registros
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button size="small" variant="outlined" disabled={safeConsumptionPage === 1} onClick={() => changeConsumptionPage(safeConsumptionPage - 1)}>
+                  Anterior
+                </Button>
+                <TextField
+                  size="small"
+                  label="Pagina"
+                  value={consumptionPageInput}
+                  onChange={(e) => setConsumptionPageInput(e.target.value)}
+                  sx={{ width: 100 }}
+                  inputProps={{ inputMode: "numeric" }}
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    const parsed = Number(consumptionPageInput);
+                    if (!Number.isInteger(parsed)) return;
+                    changeConsumptionPage(parsed);
+                  }}
+                >
+                  Ir
+                </Button>
+                <Button size="small" variant="outlined" disabled={safeConsumptionPage >= consumptionTotalPages} onClick={() => changeConsumptionPage(safeConsumptionPage + 1)}>
+                  Siguiente
+                </Button>
+              </Stack>
+            </Stack>
+          )}
         </CardContent>
       </Card>
     </Stack>

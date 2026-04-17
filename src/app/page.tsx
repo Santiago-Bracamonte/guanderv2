@@ -15,7 +15,6 @@ export default function Home() {
       <StatsBar />
       <LocationsFilterSection />
       <ExclusiveOffersSection />
- 
       <SubscriptionPlans />
       <ContactSection />
       <Footer />

@@ -10,6 +10,7 @@ export type StoreSummaryRow = {
   category_name: string | null;
   plan_name: string | null;
   plan_amount: number | null;
+  plan_benefits: string | null;
   plan_state: string | null;
   plan_expiration_date: string | null;
   payout_state: string | null;
@@ -83,6 +84,7 @@ export type SubscriptionPlanOption = {
   description: string;
   state: number;
   amount: number;
+  plan_benefits: string | null;
 };
 
 export type DashboardData = {

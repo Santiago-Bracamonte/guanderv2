@@ -52,26 +52,24 @@ function toCodeChunk(value: string, fallback: string): string {
   const cleaned = value
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 8);
+    .slice(0, 10);
   return cleaned || fallback;
 }
 
-function normalizeCouponCode(inputCode: string, storeId: number, name: string): string {
-  const base = inputCode.toUpperCase().replace(/\s+/g, "-").replace(/[^A-Z0-9-]/g, "");
-  if (base.startsWith("GUANDER-")) {
-    return base;
-  }
-
-  const namePart = toCodeChunk(name, "CUPON");
-  const storePart = `S${storeId}`;
-  const codePart = toCodeChunk(base, "CODIGO");
-  return `GUANDER-${storePart}-${namePart}-${codePart}`;
+function randomCodeChunk(length = 8): string {
+  const random = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return random.slice(0, length);
 }
 
-function randomCode(storeId: number, name: string): string {
-  const namePart = toCodeChunk(name, "CUPON");
-  const randomPart = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-  return `GUANDER-S${storeId}-${namePart}-${randomPart}`;
+function normalizeCouponCode(inputCode: string): string {
+  const base = inputCode.toUpperCase().trim();
+  const rawChunk = base.startsWith("GUANDER-") ? base.slice(8) : base;
+  const chunk = toCodeChunk(rawChunk, randomCodeChunk(8));
+  return `GUANDER-${chunk}`;
+}
+
+function randomCode(): string {
+  return `GUANDER-${randomCodeChunk(8)}`;
 }
 
 async function findDefaultCouponStateId(): Promise<number | null> {
@@ -97,9 +95,9 @@ async function findDefaultCouponStateId(): Promise<number | null> {
   return fallback[0]?.id_coupon_state ?? null;
 }
 
-async function generateUniqueCode(storeId: number, name: string): Promise<string> {
+async function generateUniqueCode(): Promise<string> {
   for (let i = 0; i < 5; i += 1) {
-    const candidate = randomCode(storeId, name);
+    const candidate = randomCode();
     const existing = await queryD1<{ id_coupon: number }>(
       "SELECT id_coupon FROM coupon_store WHERE code_coupon = ? LIMIT 1",
       [candidate],
@@ -117,9 +115,8 @@ async function ensureUniqueCouponCode(
   desiredCode: string,
   idCouponToExclude?: number,
 ): Promise<string> {
-  let candidate = desiredCode;
-
   for (let i = 0; i < 6; i += 1) {
+    const candidate = i === 0 ? desiredCode : randomCode();
     const existing = await queryD1<{ id_coupon: number }>(
       "SELECT id_coupon FROM coupon_store WHERE code_coupon = ? LIMIT 1",
       [candidate],
@@ -132,13 +129,6 @@ async function ensureUniqueCouponCode(
     ) {
       return candidate;
     }
-
-    const suffix = Math.random()
-      .toString(36)
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "")
-      .slice(0, 4);
-    candidate = `${desiredCode}-${suffix}`;
   }
 
   throw new Error("No se pudo generar un codigo unico para el cupon");
@@ -199,12 +189,8 @@ export async function GET() {
   for (const coupon of coupons) {
     let normalizedCode = coupon.code_coupon;
 
-    if (!coupon.code_coupon.startsWith("GUANDER-")) {
-      const desiredCode = normalizeCouponCode(
-        coupon.code_coupon,
-        context.storeId,
-        coupon.name,
-      );
+    if (!/^GUANDER-[A-Z0-9]+$/.test(coupon.code_coupon)) {
+      const desiredCode = normalizeCouponCode(coupon.code_coupon);
       normalizedCode = await ensureUniqueCouponCode(desiredCode, coupon.id_coupon);
 
       await queryD1(
@@ -269,9 +255,9 @@ export async function POST(request: NextRequest) {
 
   let codeCoupon = explicitCode;
   if (!codeCoupon) {
-    codeCoupon = await generateUniqueCode(context.storeId, name);
+    codeCoupon = await generateUniqueCode();
   } else {
-    codeCoupon = normalizeCouponCode(codeCoupon, context.storeId, name);
+    codeCoupon = normalizeCouponCode(codeCoupon);
   }
 
   codeCoupon = await ensureUniqueCouponCode(codeCoupon);
@@ -365,9 +351,9 @@ export async function PUT(request: NextRequest) {
 
   let codeCoupon = explicitCode;
   if (!codeCoupon) {
-    codeCoupon = existing[0].code_coupon || (await generateUniqueCode(context.storeId, name));
+    codeCoupon = existing[0].code_coupon || (await generateUniqueCode());
   } else {
-    codeCoupon = normalizeCouponCode(codeCoupon, context.storeId, name);
+    codeCoupon = normalizeCouponCode(codeCoupon);
   }
 
   codeCoupon = await ensureUniqueCouponCode(codeCoupon, idCoupon);
