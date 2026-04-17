@@ -257,7 +257,7 @@ export default async function LocalDashboard() {
   const token = cookieStore.get("token")?.value;
   const user = token ? verifyToken(token) : null;
 
-  if (!user || user.role !== "store_owner") {
+  if (!user || (user.role !== "store_owner" && user.role !== "professional")) {
     redirect("/login");
   }
 
