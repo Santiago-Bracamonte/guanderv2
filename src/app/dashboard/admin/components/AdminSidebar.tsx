@@ -97,14 +97,6 @@ export default function AdminSidebar({
             >
               <item.icon size={18} strokeWidth={active ? 2.5 : 2} />
               <span className="flex-1">{item.label}</span>
-              {item.badge && (
-                <span
-                  className="text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold"
-                  style={{ backgroundColor: "#0b2c22" }}
-                >
-                  {item.badge}
-                </span>
-              )}
             </Link>
           );
         })}
