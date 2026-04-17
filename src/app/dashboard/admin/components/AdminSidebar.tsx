@@ -9,7 +9,7 @@ import {
   Shield,
   ShoppingBag,
   Settings,
-  MessageSquare,
+  ClipboardList,
 } from "lucide-react";
 
 const navItems = [
@@ -40,10 +40,9 @@ const navItems = [
     icon: Settings,
   },
   {
-    label: "Mensajes",
-    href: "/dashboard/admin/mensajes",
-    icon: MessageSquare,
-    badge: 5,
+    label: "Solicitudes de Alta",
+    href: "/dashboard/admin/solicitudes",
+    icon: ClipboardList,
   },
 ];
 

@@ -271,9 +271,13 @@ export default async function LocalDashboard() {
     error = err instanceof CloudflareD1Error ? err.message : "No se pudo cargar el dashboard.";
   }
 
+  if (error) {
+    return <LocalDashboardClient data={null} error={error} />;
+  }
+
   if (!data) {
     return <OnboardingRequestForm />;
   }
 
-  return <LocalDashboardClient data={data} error={error} />;
+  return <LocalDashboardClient data={data} error={null} />;
 }
