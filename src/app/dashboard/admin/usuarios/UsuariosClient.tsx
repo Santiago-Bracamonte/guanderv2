@@ -304,8 +304,9 @@ export default function UsuariosClient({
         className="bg-white rounded-2xl overflow-hidden"
         style={{ border: "1px solid var(--guander-border)" }}
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[600px]">
+        {/* Desktop Table - Hidden on mobile/tablet */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "var(--guander-mint)" }}>
                 <th
@@ -442,24 +443,144 @@ export default function UsuariosClient({
             </tbody>
           </table>
         </div>
-        
+
+        {/* Mobile/Tablet Cards - Hidden on desktop */}
+        <div className="lg:hidden space-y-3 p-4">
+          {filtered.length === 0 && (
+            <p
+              className="text-center py-8 text-sm"
+              style={{ color: "var(--guander-muted)" }}
+            >
+              No se encontraron usuarios.
+            </p>
+          )}
+          {paginatedItems.map((user) => (
+            <div
+              key={user.id_user}
+              className="rounded-xl p-4"
+              style={{
+                backgroundColor: "var(--guander-mint)",
+                border: "1px solid",
+                borderColor: "var(--guander-border)",
+              }}
+            >
+              <div className="flex justify-between items-start gap-2 mb-3">
+                <div className="flex-1">
+                  <p
+                    className="font-bold text-sm"
+                    style={{ color: "var(--guander-ink)" }}
+                  >
+                    {user.name} {user.last_name}
+                  </p>
+                  <p
+                    className="text-xs"
+                    style={{ color: "var(--guander-muted)" }}
+                  >
+                    @{user.username}
+                  </p>
+                </div>
+                <span
+                  className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                  style={{ backgroundColor: "#d4edda", color: "#1f4b3b" }}
+                >
+                  {user.rol || "—"}
+                </span>
+              </div>
+              <div className="space-y-2 mb-3">
+                <div>
+                  <p
+                    className="text-xs font-semibold uppercase"
+                    style={{ color: "var(--guander-muted)" }}
+                  >
+                    Email
+                  </p>
+                  <p
+                    className="text-xs"
+                    style={{ color: "var(--guander-ink)" }}
+                  >
+                    {user.email || "—"}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p
+                      className="text-xs font-semibold uppercase"
+                      style={{ color: "var(--guander-muted)" }}
+                    >
+                      Estado
+                    </p>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${user.state === 1 ? "text-green-800" : "text-red-800"}`}
+                      style={{
+                        backgroundColor:
+                          user.state === 1 ? "#d4edda" : "#fde8e8",
+                      }}
+                    >
+                      {user.state === 1 ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                  <div>
+                    <p
+                      className="text-xs font-semibold uppercase"
+                      style={{ color: "var(--guander-muted)" }}
+                    >
+                      Registro
+                    </p>
+                    <p
+                      className="text-xs"
+                      style={{ color: "var(--guander-ink)" }}
+                    >
+                      {user.date_reg?.split("T")[0] ?? "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setViewUser(user)}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+                  style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}
+                >
+                  Ver
+                </button>
+                <button
+                  onClick={() => openEdit(user)}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white transition hover:opacity-90 cursor-pointer"
+                  style={{ backgroundColor: "var(--guander-forest)" }}
+                >
+                  Editar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Paginación */}
         {totalPages > 1 && (
-          <div className="px-5 py-4 border-t flex items-center justify-between" style={{ borderColor: "var(--guander-border)" }}>
+          <div
+            className="px-5 py-4 border-t flex items-center justify-between"
+            style={{ borderColor: "var(--guander-border)" }}
+          >
             <p className="text-sm" style={{ color: "var(--guander-muted)" }}>
-              Página {currentPage} de {totalPages} ({filtered.length} resultados)
+              Página {currentPage} de {totalPages} ({filtered.length}{" "}
+              resultados)
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
                 className="px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: "var(--guander-mint)", color: "var(--guander-forest)" }}
+                style={{
+                  backgroundColor: "var(--guander-mint)",
+                  color: "var(--guander-forest)",
+                }}
               >
                 Anterior
               </button>
               <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
                 disabled={currentPage === totalPages}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: "var(--guander-forest)" }}

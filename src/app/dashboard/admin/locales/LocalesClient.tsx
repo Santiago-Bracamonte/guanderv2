@@ -7,8 +7,6 @@ import {
   Search,
   Star,
   ImageIcon,
-  Download,
-  Settings,
   Plus,
   X,
   MapPin,
@@ -527,7 +525,9 @@ export default function LocalesClient({
           return;
         }
         setCategories((prev) =>
-          [...prev, data.data as Category].sort((a, b) => a.name.localeCompare(b.name)),
+          [...prev, data.data as Category].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
         );
         alert("Categoría creada exitosamente");
       }
@@ -1009,24 +1009,6 @@ export default function LocalesClient({
           >
             <Plus size={14} /> Categorías
           </button>
-          <button
-            className="w-9 h-9 rounded-lg border flex items-center justify-center hover:bg-white transition"
-            style={{ borderColor: "var(--guander-border)" }}
-          >
-            <ImageIcon size={16} style={{ color: "var(--guander-muted)" }} />
-          </button>
-          <button
-            className="w-9 h-9 rounded-lg border flex items-center justify-center hover:bg-white transition"
-            style={{ borderColor: "var(--guander-border)" }}
-          >
-            <Download size={16} style={{ color: "var(--guander-muted)" }} />
-          </button>
-          <button
-            className="w-9 h-9 rounded-lg border flex items-center justify-center hover:bg-white transition"
-            style={{ borderColor: "var(--guander-border)" }}
-          >
-            <Settings size={16} style={{ color: "var(--guander-muted)" }} />
-          </button>
         </div>
       </div>
 
@@ -1095,115 +1077,118 @@ export default function LocalesClient({
         <div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {paginatedItems.map((locale) => {
-            const typeStyle = TYPE_COLORS[locale.type] || TYPE_COLORS.Free;
-            return (
-              <div
-                key={locale.id}
-                className="bg-white rounded-2xl overflow-hidden"
-                style={{ border: "1px solid var(--guander-border)" }}
-              >
-                {/* Image */}
+              const typeStyle = TYPE_COLORS[locale.type] || TYPE_COLORS.Free;
+              return (
                 <div
-                  className="relative h-36 overflow-hidden"
-                  style={{ backgroundColor: "var(--guander-cream)" }}
+                  key={locale.id}
+                  className="bg-white rounded-2xl overflow-hidden"
+                  style={{ border: "1px solid var(--guander-border)" }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={locale.image}
-                    alt={locale.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <span
-                    className="absolute top-3 right-3 text-[10px] font-bold px-2.5 py-1 rounded tracking-wide uppercase"
-                    style={{
-                      backgroundColor: typeStyle.bg,
-                      color: typeStyle.text,
-                    }}
+                  {/* Image */}
+                  <div
+                    className="relative h-36 overflow-hidden"
+                    style={{ backgroundColor: "var(--guander-cream)" }}
                   >
-                    {locale.type}
-                  </span>
-                </div>
-                <div className="p-5">
-                  <div className="mb-1">
-                    <h3
-                      className="text-base font-bold"
-                      style={{ color: "var(--guander-ink)" }}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={locale.image}
+                      alt={locale.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <span
+                      className="absolute top-3 right-3 text-[10px] font-bold px-2.5 py-1 rounded tracking-wide uppercase"
+                      style={{
+                        backgroundColor: typeStyle.bg,
+                        color: typeStyle.text,
+                      }}
                     >
-                      {locale.name}
-                    </h3>
-                    <p
-                      className="text-xs"
-                      style={{ color: "var(--guander-muted)" }}
-                    >
-                      {locale.email}
-                    </p>
+                      {locale.type}
+                    </span>
                   </div>
-                  <p
-                    className="text-sm mb-2"
-                    style={{ color: "var(--guander-muted)" }}
-                  >
-                    {locale.category}
-                  </p>
-                  <div className="flex items-center gap-6 mb-4">
-                    <div className="flex items-center gap-1">
-                      <span
-                        className="text-sm"
-                        style={{ color: "var(--guander-muted)" }}
-                      >
-                        Valoración :
-                      </span>
-                      {locale.rating != null && (
-                        <>
-                          <Star size={14} fill="#e3b75e" color="#e3b75e" />
-                          <span
-                            className="text-sm font-bold"
-                            style={{ color: "var(--guander-ink)" }}
-                          >
-                            {locale.rating.toFixed(1)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span
-                        className="text-sm"
-                        style={{ color: "var(--guander-muted)" }}
-                      >
-                        Favoritos :
-                      </span>
-                      <span
-                        className="text-sm font-bold"
+                  <div className="p-5">
+                    <div className="mb-1">
+                      <h3
+                        className="text-base font-bold"
                         style={{ color: "var(--guander-ink)" }}
                       >
-                        {locale.favorites}
-                      </span>
+                        {locale.name}
+                      </h3>
+                      <p
+                        className="text-xs"
+                        style={{ color: "var(--guander-muted)" }}
+                      >
+                        {locale.email}
+                      </p>
+                    </div>
+                    <p
+                      className="text-sm mb-2"
+                      style={{ color: "var(--guander-muted)" }}
+                    >
+                      {locale.category}
+                    </p>
+                    <div className="flex items-center gap-6 mb-4">
+                      <div className="flex items-center gap-1">
+                        <span
+                          className="text-sm"
+                          style={{ color: "var(--guander-muted)" }}
+                        >
+                          Valoración :
+                        </span>
+                        {locale.rating != null && (
+                          <>
+                            <Star size={14} fill="#e3b75e" color="#e3b75e" />
+                            <span
+                              className="text-sm font-bold"
+                              style={{ color: "var(--guander-ink)" }}
+                            >
+                              {locale.rating.toFixed(1)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span
+                          className="text-sm"
+                          style={{ color: "var(--guander-muted)" }}
+                        >
+                          Favoritos :
+                        </span>
+                        <span
+                          className="text-sm font-bold"
+                          style={{ color: "var(--guander-ink)" }}
+                        >
+                          {locale.favorites}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setViewLocale(locale)}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
+                        style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}
+                      >
+                        Ver
+                      </button>
+                      <button
+                        onClick={() => openEdit(locale)}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90"
+                        style={{ backgroundColor: "var(--guander-forest)" }}
+                      >
+                        Editar
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setViewLocale(locale)}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
-                      style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}
-                    >
-                      Ver
-                    </button>
-                    <button
-                      onClick={() => openEdit(locale)}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90"
-                      style={{ backgroundColor: "var(--guander-forest)" }}
-                    >
-                      Editar
-                    </button>
-                  </div>
                 </div>
-              </div>
-            );
+              );
             })}
           </div>
 
           {/* Paginación */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 px-4 py-4 bg-white rounded-2xl" style={{ border: "1px solid var(--guander-border)" }}>
+            <div
+              className="flex items-center justify-between mt-6 px-4 py-4 bg-white rounded-2xl"
+              style={{ border: "1px solid var(--guander-border)" }}
+            >
               <p className="text-sm" style={{ color: "var(--guander-muted)" }}>
                 Página {currentPage} de {totalPages} ({filtered.length} locales)
               </p>
@@ -1212,12 +1197,17 @@ export default function LocalesClient({
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                   className="px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: "var(--guander-mint)", color: "var(--guander-forest)" }}
+                  style={{
+                    backgroundColor: "var(--guander-mint)",
+                    color: "var(--guander-forest)",
+                  }}
                 >
                   Anterior
                 </button>
                 <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: "var(--guander-forest)" }}
