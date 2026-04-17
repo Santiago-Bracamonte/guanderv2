@@ -1,10 +1,12 @@
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { verifyToken } from "@/lib/auth";
+import { cookies } from "next/headers";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Read the token cookie from the request
-    const tokenCookie = request.cookies.get("token")?.value;
+    const cookieStore = await cookies();
+    const tokenCookie = cookieStore.get("token")?.value;
 
     if (!tokenCookie) {
       return Response.json({ error: "No autenticado" }, { status: 401 });
