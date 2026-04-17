@@ -1,4 +1,4 @@
-﻿const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const DATABASE_ID = process.env.CLOUDFLARE_D1_DATABASE_ID;
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 

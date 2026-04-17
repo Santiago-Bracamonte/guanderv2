@@ -1,4 +1,4 @@
-﻿export default async function EstadisticasPage() {
+export default async function EstadisticasPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold" style={{ color: "var(--guander-ink)" }}>

@@ -1,4 +1,4 @@
-﻿import { queryD1 } from '@/lib/cloudflare-d1';
+import { queryD1 } from '@/lib/cloudflare-d1';
 import StatsBarClient from './StatsBarClient';
 
 export default async function StatsBar() {

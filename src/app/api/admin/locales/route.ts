@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/cloudflare-d1';
 
 function parseLatLng(raw: string | null | undefined): string | null {

@@ -1,4 +1,4 @@
-﻿import { MessageSquare, Send } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 
 const messages = [
   { id: 1, from: 'Juan Pérez', subject: 'Consulta sobre suscripción', preview: 'Hola, tengo una duda sobre el plan Premium...', time: 'Hace 15 min', unread: true },

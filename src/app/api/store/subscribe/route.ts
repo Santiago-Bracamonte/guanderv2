@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 
 type PreferenceItem = {

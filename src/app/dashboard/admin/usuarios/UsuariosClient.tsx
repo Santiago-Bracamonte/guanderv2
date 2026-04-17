@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Users, UserPlus, Search, X } from "lucide-react";

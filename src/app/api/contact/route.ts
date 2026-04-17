@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 const CONTACT_TO = 'tomas.gonzalezz@davinci.edu.ar';
