@@ -20,11 +20,168 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
+import MapRoundedIcon from "@mui/icons-material/MapRounded";
 import Link from "next/link";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 interface Category {
   id_category: number;
   name: string;
+}
+
+interface ReverseGeocodeResponse {
+  address?: string;
+}
+
+const pickerMarkerIcon =
+  typeof window !== "undefined"
+    ? L.icon({ iconUrl: "/Marcador.png", iconSize: [52, 52], iconAnchor: [26, 32] })
+    : null;
+
+function parseLatLng(raw: string): { lat: number; lng: number } | null {
+  const parts = raw.split(",").map((v) => Number(v.trim()));
+  if (parts.length !== 2) return null;
+  const [lat, lng] = parts;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat === 0 && lng === 0) return null;
+  return { lat, lng };
+}
+
+function MapModal({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[1400] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="relative bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function MapLocationPicker({
+  open,
+  initialLocation,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  initialLocation: string;
+  onClose: () => void;
+  onConfirm: (payload: { location: string; address: string }) => void;
+}) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState("");
+  const [resolvingAddress, setResolvingAddress] = useState(false);
+
+  useEffect(() => {
+    if (!open || !mapContainerRef.current) return;
+    const initial = parseLatLng(initialLocation) ?? { lat: -34.603722, lng: -58.381592 };
+    setSelectedLocation(initial);
+    let cancelled = false;
+
+    const reverseGeocode = async (lat: number, lng: number) => {
+      setResolvingAddress(true);
+      try {
+        const res = await fetch(`/api/admin/locales/reverse-geocode?lat=${lat}&lng=${lng}`);
+        if (!res.ok) { setSelectedAddress(""); return; }
+        const data = (await res.json()) as ReverseGeocodeResponse;
+        setSelectedAddress(data.address ?? "");
+      } catch {
+        setSelectedAddress("");
+      } finally {
+        if (!cancelled) setResolvingAddress(false);
+      }
+    };
+
+    const icon = pickerMarkerIcon ?? L.icon({ iconUrl: "/Marcador.png", iconSize: [52, 52], iconAnchor: [26, 32] });
+    const map = L.map(mapContainerRef.current, { zoomControl: true, scrollWheelZoom: true });
+    mapRef.current = map;
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    map.setView([initial.lat, initial.lng], 15);
+    const marker = L.marker([initial.lat, initial.lng], { draggable: true, icon }).addTo(map);
+    markerRef.current = marker;
+    void reverseGeocode(initial.lat, initial.lng);
+
+    const updateLocation = (lat: number, lng: number) => {
+      marker.setLatLng([lat, lng]);
+      setSelectedLocation({ lat, lng });
+      void reverseGeocode(lat, lng);
+    };
+    map.on("click", (e: L.LeafletMouseEvent) => updateLocation(e.latlng.lat, e.latlng.lng));
+    marker.on("dragend", () => { const p = marker.getLatLng(); updateLocation(p.lat, p.lng); });
+    requestAnimationFrame(() => map.invalidateSize());
+    setTimeout(() => map.invalidateSize(), 120);
+
+    return () => {
+      cancelled = true;
+      markerRef.current = null;
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, [open, initialLocation]);
+
+  return (
+    <MapModal open={open} onClose={onClose}>
+      <div style={{ padding: "24px 24px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontWeight: 800, fontSize: 18, color: "#173a2d" }}>Elegir ubicación en mapa</span>
+        <button onClick={onClose} style={{ cursor: "pointer", background: "none", border: "none", fontSize: 20, color: "#555" }}>✕</button>
+      </div>
+      <div style={{ padding: "0 24px 16px" }}>
+        <p style={{ fontSize: 13, color: "#4b675b", marginBottom: 12 }}>
+          Hacé click en el punto exacto o arrastrá el pin para ajustar la ubicación.
+        </p>
+        <div ref={mapContainerRef} style={{ width: "100%", minHeight: 380, borderRadius: 12, overflow: "hidden", border: "1px solid #d6e4da" }} />
+        <div style={{ marginTop: 12, background: "#f5f8f0", borderRadius: 12, padding: 12, border: "1px solid #d6e4da" }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "#4b675b", marginBottom: 4 }}>Ubicación seleccionada</p>
+          <p style={{ fontSize: 13, color: "#173a2d" }}>
+            {selectedLocation ? `${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}` : "Seleccioná un punto en el mapa"}
+          </p>
+          <p style={{ fontSize: 12, marginTop: 6, color: "#4b675b" }}>
+            {resolvingAddress ? "Buscando dirección..." : selectedAddress || "No se pudo resolver una dirección exacta."}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+          <button
+            onClick={onClose}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 12, border: "none", background: "#c5cdb3", color: "#3d4f35", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
+          >Cancelar</button>
+          <button
+            onClick={() => {
+              if (!selectedLocation) return;
+              onConfirm({
+                location: `${selectedLocation.lat.toFixed(6)},${selectedLocation.lng.toFixed(6)}`,
+                address: selectedAddress,
+              });
+            }}
+            disabled={!selectedLocation}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 12, border: "none", background: "#2e7d5b", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
+          >Confirmar ubicación</button>
+        </div>
+      </div>
+    </MapModal>
+  );
 }
 
 const SCHEDULE_PRESETS = [
@@ -66,6 +223,7 @@ export default function OnboardingRequestForm() {
   const [scheduleSunday, setScheduleSunday] = useState("Cerrado");
   const [imageUrl, setImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
 
   // Check if user already has a pending request
   useEffect(() => {
@@ -316,18 +474,28 @@ export default function OnboardingRequestForm() {
                 inputProps={{ maxLength: 500 }}
               />
               <Box sx={{ position: "relative" }}>
-                <TextField
-                  label="Dirección *"
-                  value={addressQuery}
-                  onChange={(e) => {
-                    setAddressQuery(e.target.value);
-                    setAddress(e.target.value);
-                    setLocation("");
-                  }}
-                  fullWidth
-                  placeholder="Buscá y seleccioná la dirección exacta"
-                  inputProps={{ maxLength: 300 }}
-                />
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <TextField
+                    label="Dirección *"
+                    value={addressQuery}
+                    onChange={(e) => {
+                      setAddressQuery(e.target.value);
+                      setAddress(e.target.value);
+                      setLocation("");
+                    }}
+                    fullWidth
+                    placeholder="Buscá y seleccioná la dirección exacta"
+                    inputProps={{ maxLength: 300 }}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={() => setMapOpen(true)}
+                    sx={{ minWidth: 48, px: 1.5, borderColor: "#2e7d5b", color: "#2e7d5b", "&:hover": { borderColor: "#1f4b3b", bgcolor: "#f0f7f2" } }}
+                    title="Elegir en mapa"
+                  >
+                    <MapRoundedIcon />
+                  </Button>
+                </Box>
                 {suggestions.length > 0 && (
                   <Paper
                     elevation={4}
@@ -368,6 +536,16 @@ export default function OnboardingRequestForm() {
                   📍 Coordenadas: {location}
                 </Typography>
               )}
+              <MapLocationPicker
+                open={mapOpen}
+                initialLocation={location}
+                onClose={() => setMapOpen(false)}
+                onConfirm={({ location: loc, address: addr }) => {
+                  setLocation(loc);
+                  if (addr) { setAddress(addr); setAddressQuery(addr); }
+                  setMapOpen(false);
+                }}
+              />
               <FormControl fullWidth>
                 <InputLabel>Categoría</InputLabel>
                 <Select
