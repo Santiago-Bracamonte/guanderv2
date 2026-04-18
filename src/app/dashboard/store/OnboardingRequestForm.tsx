@@ -119,17 +119,19 @@ export default function OnboardingRequestForm() {
     if (!file) return;
     setUploadingImage(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/admin/upload-image", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json() as { url?: string; error?: string };
-      if (res.ok && data.url) {
-        setImageUrl(data.url);
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("upload_preset", "guander_unsigned");
+      fd.append("folder", "guander/locales");
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dwckkyqpw/image/upload",
+        { method: "POST", body: fd },
+      );
+      const data = await res.json() as { secure_url?: string; error?: { message: string } };
+      if (res.ok && data.secure_url) {
+        setImageUrl(data.secure_url);
       } else {
-        setErrorMsg(data.error ?? "Error al subir imagen");
+        setErrorMsg(data.error?.message ?? "Error al subir imagen");
       }
     } catch {
       setErrorMsg("Error al subir imagen");
