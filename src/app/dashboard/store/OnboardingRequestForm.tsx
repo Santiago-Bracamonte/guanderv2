@@ -20,6 +20,7 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
 import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
+import Link from "next/link";
 
 interface Category {
   id_category: number;
@@ -246,6 +247,16 @@ export default function OnboardingRequestForm() {
                     ? "Tu solicitud está siendo revisada por el equipo de Guander."
                     : "Tu local fue creado. Actualizá la página para verlo."}
               </Typography>
+              {(status === "success" && !req) || isPending ? (
+                <Button
+                  component={Link}
+                  href="/"
+                  variant="outlined"
+                  sx={{ mt: 3, borderColor: "#2e7d5b", color: "#2e7d5b", "&:hover": { borderColor: "#1f4b3b", color: "#1f4b3b" } }}
+                >
+                  Volver al inicio
+                </Button>
+              ) : null}
               {req?.created_at && (
                 <Typography variant="caption" color="text.secondary" display="block" mt={2}>
                   Enviada el{" "}
