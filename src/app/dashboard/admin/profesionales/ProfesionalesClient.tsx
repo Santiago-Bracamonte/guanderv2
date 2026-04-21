@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import L from "leaflet";
-import { Search, Star, MapPin, Briefcase, X, CheckCircle, XCircle } from "lucide-react";
+import { Search, Star, MapPin, Briefcase, X, CheckCircle, XCircle, Upload } from "lucide-react";
 
 export interface ProfessionalItem {
   id: number;
@@ -19,6 +19,7 @@ export interface ProfessionalItem {
   scheduleWeek: string;
   scheduleWeekend: string;
   scheduleSunday: string;
+  imageUrl: string;
 }
 
 interface ServiceType {
@@ -30,6 +31,23 @@ interface GeocodeSuggestion {
   displayName: string;
   lat: number;
   lng: number;
+}
+
+const CLOUD_NAME = "dwckkyqpw";
+const UPLOAD_PRESET = "guander_unsigned";
+
+async function uploadToCloudinary(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("upload_preset", UPLOAD_PRESET);
+  fd.append("folder", "guander/profesionales");
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+    { method: "POST", body: fd },
+  );
+  const data = (await res.json()) as { secure_url?: string; error?: { message: string } };
+  if (!res.ok || !data.secure_url) throw new Error(data.error?.message ?? "Upload failed");
+  return data.secure_url;
 }
 
 const pickerMarkerIcon =
@@ -237,6 +255,9 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
   const [addressSuggestions, setAddressSuggestions] = useState<GeocodeSuggestion[]>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const [formImageFile, setFormImageFile] = useState<File | null>(null);
+  const [formImagePreview, setFormImagePreview] = useState("");
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   /* ── Load service types ── */
   useEffect(() => {
@@ -308,6 +329,8 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
     setFormErrors({});
     setAddressSuggestions([]);
     setShowAddressSuggestions(false);
+    setFormImageFile(null);
+    setFormImagePreview(prof.imageUrl);
     setEditProfessional(prof);
   };
 
@@ -339,6 +362,10 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
     setSaving(true);
     try {
       const chosenType = serviceTypes.find((t) => t.id_type_service === formServiceTypeId);
+      let finalImageUrl = editProfessional.imageUrl;
+      if (formImageFile) {
+        finalImageUrl = await uploadToCloudinary(formImageFile);
+      }
       await fetch("/api/admin/profesionales", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -353,6 +380,7 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
           schedule_week: formWeek.trim() || null,
           schedule_weekend: formWeekend.trim() || null,
           schedule_sunday: formSunday.trim() || null,
+          image_url: finalImageUrl || null,
         }),
       });
 
@@ -371,6 +399,7 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
                 scheduleWeek: formWeek.trim(),
                 scheduleWeekend: formWeekend.trim(),
                 scheduleSunday: formSunday.trim(),
+                imageUrl: finalImageUrl,
               }
             : p,
         ),
@@ -438,7 +467,7 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
           {paginated.map((prof, i) => (
             <div key={prof.id} className="bg-white rounded-2xl overflow-hidden flex flex-col" style={{ border: "1px solid var(--guander-border)" }}>
               <div className="relative">
-                <img src={PLACEHOLDER_AVATARS[i % PLACEHOLDER_AVATARS.length]} alt={prof.name} className="w-full h-40 object-cover" />
+                <img src={prof.imageUrl || PLACEHOLDER_AVATARS[i % PLACEHOLDER_AVATARS.length]} alt={prof.name} className="w-full h-40 object-cover" />
                 <span className="absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: "#3d6b6b", color: "#ffffff" }}>
                   PROFESIONAL
                 </span>
@@ -538,6 +567,66 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
             </div>
 
             <div className="px-5 pb-5 space-y-4">
+              {/* Photo */}
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: "var(--guander-ink)" }}>Foto</label>
+                <div className="flex gap-4 items-start">
+                  <div
+                    className="relative w-28 h-20 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer group"
+                    style={{ border: "2px dashed var(--guander-border)", backgroundColor: "var(--guander-cream)" }}
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    {formImagePreview ? (
+                      <img src={formImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                        <Upload size={18} style={{ color: "var(--guander-muted)" }} />
+                        <span className="text-xs" style={{ color: "var(--guander-muted)" }}>Sin foto</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                      <Upload size={18} className="text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
+                      style={{ border: "1px solid var(--guander-border)", backgroundColor: "var(--guander-cream)", color: "var(--guander-ink)" }}
+                    >
+                      {formImagePreview ? "Cambiar foto" : "Subir foto"}
+                    </button>
+                    {formImageFile && (
+                      <button
+                        type="button"
+                        onClick={() => { setFormImageFile(null); setFormImagePreview(editProfessional?.imageUrl ?? ""); }}
+                        className="w-full py-2 rounded-xl text-xs font-semibold transition cursor-pointer hover:opacity-90"
+                        style={{ color: "#ef4444" }}
+                      >
+                        ✕ Quitar cambio
+                      </button>
+                    )}
+                    <p className="text-xs" style={{ color: "var(--guander-muted)" }}>
+                      JPG, PNG o WEBP · Máx. 5 MB
+                    </p>
+                  </div>
+                </div>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) { alert("La imagen no puede superar 5 MB"); return; }
+                    setFormImageFile(file);
+                    setFormImagePreview(URL.createObjectURL(file));
+                  }}
+                />
+              </div>
+
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--guander-ink)" }}>Descripción</label>

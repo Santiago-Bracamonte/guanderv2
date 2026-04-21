@@ -26,6 +26,7 @@ export async function PUT(request: Request) {
     schedule_week?: string | null;
     schedule_weekend?: string | null;
     schedule_sunday?: string | null;
+    image_url?: string | null;
   };
 
   try {
@@ -47,8 +48,9 @@ export async function PUT(request: Request) {
       accept_point: number | null;
       fk_type_service: number | null;
       fk_schedule: number | null;
+      image_url: string | null;
     }>(
-      'SELECT description, address, location, stars, accept_point, fk_type_service, fk_schedule FROM professionals WHERE id_professional = ? LIMIT 1',
+      'SELECT description, address, location, stars, accept_point, fk_type_service, fk_schedule, image_url FROM professionals WHERE id_professional = ? LIMIT 1',
       [body.id_professional],
       { revalidate: false },
     );
@@ -63,6 +65,7 @@ export async function PUT(request: Request) {
     const nextStars = body.stars !== undefined ? body.stars : (current.stars ?? 0);
     const nextAcceptPoint = body.accept_point !== undefined ? body.accept_point : (current.accept_point ?? 0);
     const nextTypeService = body.fk_type_service ?? current.fk_type_service ?? 1;
+    const nextImageUrl = body.image_url !== undefined ? body.image_url : (current.image_url ?? null);
 
     // Resolve location
     let nextLocation = current.location ?? '0,0';
@@ -88,8 +91,8 @@ export async function PUT(request: Request) {
     }
 
     await queryD1(
-      'UPDATE professionals SET description = ?, address = ?, location = ?, stars = ?, accept_point = ?, fk_type_service = ? WHERE id_professional = ?',
-      [nextDescription, nextAddress, nextLocation, nextStars, nextAcceptPoint, nextTypeService, body.id_professional],
+      'UPDATE professionals SET description = ?, address = ?, location = ?, stars = ?, accept_point = ?, fk_type_service = ?, image_url = ? WHERE id_professional = ?',
+      [nextDescription, nextAddress, nextLocation, nextStars, nextAcceptPoint, nextTypeService, nextImageUrl, body.id_professional],
       { revalidate: false },
     );
 

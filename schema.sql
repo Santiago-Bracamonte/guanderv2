@@ -85,6 +85,7 @@ CREATE TABLE professionals (
   accept_point     INTEGER NOT NULL DEFAULT 0,
   location         TEXT NOT NULL,
   stars            REAL NOT NULL DEFAULT 0.00,
+  image_url        TEXT,
   fk_schedule      INTEGER NOT NULL,
   fk_type_service  INTEGER NOT NULL,
   fk_user_id       INTEGER NOT NULL,

@@ -17,6 +17,7 @@ interface ProfessionalRow {
   week: string | null;
   weekend: string | null;
   sunday: string | null;
+  image_url: string | null;
 }
 
 export default async function ProfesionalesPage() {
@@ -33,6 +34,7 @@ export default async function ProfesionalesPage() {
         p.accept_point,
         p.fk_schedule,
         p.fk_type_service,
+        p.image_url,
         ud.name,
         ud.last_name,
         ud.email,
@@ -65,6 +67,7 @@ export default async function ProfesionalesPage() {
       scheduleWeek: row.week ?? '',
       scheduleWeekend: row.weekend ?? '',
       scheduleSunday: row.sunday ?? '',
+      imageUrl: row.image_url ?? '',
     }));
   } catch {
     professionals = [];
