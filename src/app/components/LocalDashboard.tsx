@@ -5,6 +5,7 @@ import { verifyToken } from "@/lib/auth";
 import { ensureSubscriptionBenefitsColumn } from "@/lib/subscription-benefits";
 import { ensureStoreReviewRepliesTable } from "@/lib/store-review-replies";
 import LocalDashboardClient from "../dashboard/store/LocalDashboardClient";
+import OnboardingRequestForm from "../dashboard/store/OnboardingRequestForm";
 import type {
   BenefitRow,
   CouponConsumptionRow,
@@ -279,7 +280,7 @@ export default async function LocalDashboard() {
   const token = cookieStore.get("token")?.value;
   const user = token ? verifyToken(token) : null;
 
-  if (!user || user.role !== "store_owner") {
+  if (!user || (user.role !== "store_owner" && user.role !== "professional")) {
     redirect("/login");
   }
 
@@ -292,5 +293,13 @@ export default async function LocalDashboard() {
     error = err instanceof CloudflareD1Error ? err.message : "No se pudo cargar el dashboard.";
   }
 
-  return <LocalDashboardClient data={data} error={error} />;
+  if (error) {
+    return <LocalDashboardClient data={null} error={error} />;
+  }
+
+  if (!data) {
+    return <OnboardingRequestForm />;
+  }
+
+  return <LocalDashboardClient data={data} error={null} />;
 }

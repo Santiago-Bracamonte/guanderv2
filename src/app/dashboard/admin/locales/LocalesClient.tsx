@@ -376,6 +376,7 @@ export default function LocalesClient({
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Load categories from API
   useEffect(() => {
@@ -454,6 +455,7 @@ export default function LocalesClient({
     setFormImagePreview(locale.image || "");
     setAddressSuggestions([]);
     setShowAddressSuggestions(false);
+    setFormErrors({});
     setEditLocale(locale);
   };
 
@@ -469,7 +471,50 @@ export default function LocalesClient({
     setFormImagePreview("");
     setAddressSuggestions([]);
     setShowAddressSuggestions(false);
+    setFormErrors({});
     setShowAdd(true);
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!formName.trim()) {
+      errors.name = "El nombre es requerido";
+    } else if (formName.trim().length > 100) {
+      errors.name = "El nombre no puede superar 100 caracteres";
+    }
+    if (formDescription.length > 500) {
+      errors.description = "La descripción no puede superar 500 caracteres";
+    }
+    if (formAddress.length > 300) {
+      errors.address = "La dirección no puede superar 300 caracteres";
+    }
+    if (formStars !== "") {
+      const stars = parseFloat(formStars);
+      if (isNaN(stars)) {
+        errors.stars = "Ingresa un número válido";
+      } else if (stars < 0) {
+        errors.stars = "La valoración no puede ser negativa";
+      } else if (stars > 5) {
+        errors.stars = "La valoración no puede superar 5";
+      }
+    }
+    if (formLocation.trim() !== "") {
+      const parts = formLocation.split(",").map((v) => parseFloat(v.trim()));
+      if (parts.length !== 2 || parts.some(isNaN)) {
+        errors.location = "Formato inválido. Usa: -34.6037,-58.3816";
+      }
+    }
+    if (formUserEmail.trim() !== "") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formUserEmail.trim())) {
+        errors.email = "Ingresa un email válido";
+      }
+    }
+    if (formImageFile && formImageFile.size > 10 * 1024 * 1024) {
+      errors.image = "La imagen no puede superar 10MB";
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // Category management functions
@@ -584,7 +629,8 @@ export default function LocalesClient({
   };
 
   const handleSaveEdit = async () => {
-    if (!editLocale || !formName.trim()) return;
+    if (!editLocale) return;
+    if (!validateForm()) return;
     setSaving(true);
     try {
       let imageUrl = editLocale.image;
@@ -637,7 +683,7 @@ export default function LocalesClient({
   };
 
   const handleAdd = async () => {
-    if (!formName.trim()) return;
+    if (!validateForm()) return;
     setSaving(true);
     try {
       let imageUrl = "";
@@ -742,14 +788,16 @@ export default function LocalesClient({
         <input
           type="text"
           value={formName}
-          onChange={(e) => setFormName(e.target.value)}
+          maxLength={100}
+          onChange={(e) => { setFormName(e.target.value); if (formErrors.name) setFormErrors((p) => ({ ...p, name: "" })); }}
           className="w-full px-4 py-3 rounded-xl text-sm outline-none"
           style={{
-            border: "1px solid var(--guander-border)",
+            border: `1px solid ${formErrors.name ? "#ef4444" : "var(--guander-border)"}`,
             color: "var(--guander-ink)",
           }}
           placeholder="Nombre del local"
         />
+        {formErrors.name && <p className="text-xs mt-1 text-red-500">{formErrors.name}</p>}
       </div>
       <div>
         <label
@@ -760,15 +808,20 @@ export default function LocalesClient({
         </label>
         <textarea
           value={formDescription}
-          onChange={(e) => setFormDescription(e.target.value)}
+          maxLength={500}
+          onChange={(e) => { setFormDescription(e.target.value); if (formErrors.description) setFormErrors((p) => ({ ...p, description: "" })); }}
           rows={3}
           className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
           style={{
-            border: "1px solid var(--guander-border)",
+            border: `1px solid ${formErrors.description ? "#ef4444" : "var(--guander-border)"}`,
             color: "var(--guander-ink)",
           }}
           placeholder="Descripción del local"
         />
+        <div className="flex justify-between mt-1">
+          {formErrors.description ? <p className="text-xs text-red-500">{formErrors.description}</p> : <span />}
+          <p className="text-xs" style={{ color: "var(--guander-muted)" }}>{formDescription.length}/500</p>
+        </div>
       </div>
       <div>
         <label
@@ -781,14 +834,16 @@ export default function LocalesClient({
           <input
             type="text"
             value={formAddress}
+            maxLength={300}
             onChange={(e) => {
               setFormAddress(e.target.value);
               setShowAddressSuggestions(true);
+              if (formErrors.address) setFormErrors((p) => ({ ...p, address: "" }));
             }}
             onFocus={() => setShowAddressSuggestions(true)}
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
-              border: "1px solid var(--guander-border)",
+              border: `1px solid ${formErrors.address ? "#ef4444" : "var(--guander-border)"}`,
               color: "var(--guander-ink)",
             }}
             placeholder="Busca y selecciona la dirección exacta"
@@ -855,22 +910,61 @@ export default function LocalesClient({
             className="block text-sm font-medium mb-1.5"
             style={{ color: "var(--guander-ink)" }}
           >
-            Valoración
+            Valoración (0–5)
           </label>
+          <div className="flex items-center gap-2 mb-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => {
+                  setFormStars(String(star));
+                  if (formErrors.stars) setFormErrors((p) => ({ ...p, stars: "" }));
+                }}
+                className="focus:outline-none transition-transform hover:scale-110"
+                title={`${star} estrella${star > 1 ? "s" : ""}`}
+              >
+                <Star
+                  size={20}
+                  fill={parseFloat(formStars || "0") >= star ? "#f59e0b" : "none"}
+                  stroke={parseFloat(formStars || "0") >= star ? "#f59e0b" : "#aaa"}
+                />
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => { setFormStars(""); setFormErrors((p) => ({ ...p, stars: "" })); }}
+              className="text-xs ml-1 px-2 py-0.5 rounded hover:bg-gray-100 transition"
+              style={{ color: "var(--guander-muted)" }}
+              title="Limpiar"
+            >
+              ✕
+            </button>
+          </div>
           <input
             type="number"
             step="0.1"
             min="0"
             max="5"
             value={formStars}
-            onChange={(e) => setFormStars(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            onChange={(e) => {
+              const raw = e.target.value;
+              const num = parseFloat(raw);
+              if (raw === "") {
+                setFormStars("");
+              } else if (!isNaN(num)) {
+                setFormStars(String(Math.min(5, Math.max(0, parseFloat(num.toFixed(1))))));
+              }
+              if (formErrors.stars) setFormErrors((p) => ({ ...p, stars: "" }));
+            }}
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
             style={{
-              border: "1px solid var(--guander-border)",
+              border: `1px solid ${formErrors.stars ? "#ef4444" : "var(--guander-border)"}`,
               color: "var(--guander-ink)",
             }}
-            placeholder="4.5"
+            placeholder="0 – 5"
           />
+          {formErrors.stars && <p className="text-xs mt-1 text-red-500">{formErrors.stars}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -897,14 +991,15 @@ export default function LocalesClient({
           <input
             type="text"
             value={formLocation}
-            onChange={(e) => setFormLocation(e.target.value)}
+            onChange={(e) => { setFormLocation(e.target.value); if (formErrors.location) setFormErrors((p) => ({ ...p, location: "" })); }}
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
-              border: "1px solid var(--guander-border)",
+              border: `1px solid ${formErrors.location ? "#ef4444" : "var(--guander-border)"}`,
               color: "var(--guander-ink)",
             }}
             placeholder="Lat,Lng del punto exacto"
           />
+          {formErrors.location && <p className="text-xs mt-1 text-red-500">{formErrors.location}</p>}
         </div>
         <div>
           <label
@@ -916,14 +1011,15 @@ export default function LocalesClient({
           <input
             type="email"
             value={formUserEmail}
-            onChange={(e) => setFormUserEmail(e.target.value)}
+            onChange={(e) => { setFormUserEmail(e.target.value); if (formErrors.email) setFormErrors((p) => ({ ...p, email: "" })); }}
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
-              border: "1px solid var(--guander-border)",
+              border: `1px solid ${formErrors.email ? "#ef4444" : "var(--guander-border)"}`,
               color: "var(--guander-ink)",
             }}
             placeholder="usuario@email.com"
           />
+          {formErrors.email && <p className="text-xs mt-1 text-red-500">{formErrors.email}</p>}
         </div>
       </div>
       <div>
@@ -940,7 +1036,13 @@ export default function LocalesClient({
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0] ?? null;
+            if (file && file.size > 10 * 1024 * 1024) {
+              setFormErrors((p) => ({ ...p, image: "La imagen no puede superar 10MB" }));
+              e.target.value = "";
+              return;
+            }
             setFormImageFile(file);
+            if (formErrors.image) setFormErrors((p) => ({ ...p, image: "" }));
             if (file) setFormImagePreview(URL.createObjectURL(file));
             else setFormImagePreview("");
           }}
@@ -949,7 +1051,7 @@ export default function LocalesClient({
           onClick={() => imageInputRef.current?.click()}
           className="rounded-xl overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition relative"
           style={{
-            border: "2px dashed var(--guander-border)",
+            border: `2px dashed ${formErrors.image ? "#ef4444" : "var(--guander-border)"}`,
             background: "var(--guander-cream)",
             height: "120px",
           }}
@@ -980,6 +1082,7 @@ export default function LocalesClient({
             </div>
           )}
         </div>
+        {formErrors.image && <p className="text-xs mt-1 text-red-500">{formErrors.image}</p>}
       </div>
     </div>
   );

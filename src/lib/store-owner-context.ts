@@ -27,7 +27,7 @@ export async function getStoreOwnerContext(): Promise<
   }
 
   const user = verifyToken(token);
-  if (!user || user.role !== "store_owner") {
+  if (!user || (user.role !== "store_owner" && user.role !== "professional")) {
     return {
       ok: false,
       response: NextResponse.json(

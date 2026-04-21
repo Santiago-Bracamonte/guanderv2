@@ -41,6 +41,7 @@ export default function Register() {
     try {
       const res: Response = await fetch("/api/auth/register", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -83,9 +84,7 @@ export default function Register() {
 
       if (userRole === "admin") {
         window.location.href = "/dashboard/admin";
-      } else if (userRole === "professional") {
-        window.location.href = "/dashboard/professional";
-      } else if (userRole === "store_owner") {
+      } else if (userRole === "professional" || userRole === "store_owner") {
         window.location.href = "/dashboard/store";
       } else {
         setError("Rol no válido. Intenta de nuevo.");

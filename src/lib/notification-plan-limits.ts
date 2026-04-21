@@ -11,22 +11,22 @@ export type LimitConfig = {
 
 export const DEFAULT_NOTIFICATION_LIMITS: Record<PlanTier, LimitConfig> = {
   basic: {
-    cooldownMinutes: 30,
-    maxPerHour: 2,
-    maxPerDay: 6,
-    maxPerMonth: 30,
+    cooldownMinutes: 60,
+    maxPerHour: 1,
+    maxPerDay: 1,
+    maxPerMonth: 5,
   },
   plus: {
-    cooldownMinutes: 15,
-    maxPerHour: 6,
-    maxPerDay: 20,
-    maxPerMonth: 120,
+    cooldownMinutes: 30,
+    maxPerHour: 1,
+    maxPerDay: 2,
+    maxPerMonth: 10,
   },
   premium: {
-    cooldownMinutes: 5,
-    maxPerHour: 12,
-    maxPerDay: 60,
-    maxPerMonth: 400,
+    cooldownMinutes: 15,
+    maxPerHour: 2,
+    maxPerDay: 5,
+    maxPerMonth: 20,
   },
 };
 
@@ -48,13 +48,19 @@ export async function ensureNotificationLimitTable(): Promise<void> {
   for (const tier of Object.keys(DEFAULT_NOTIFICATION_LIMITS) as PlanTier[]) {
     const limit = DEFAULT_NOTIFICATION_LIMITS[tier];
     await queryD1(
-      `INSERT OR IGNORE INTO notification_plan_limits (
+      `INSERT INTO notification_plan_limits (
         tier,
         cooldown_minutes,
         max_per_hour,
         max_per_day,
         max_per_month
-      ) VALUES (?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(tier) DO UPDATE SET
+        cooldown_minutes = excluded.cooldown_minutes,
+        max_per_hour = excluded.max_per_hour,
+        max_per_day = excluded.max_per_day,
+        max_per_month = excluded.max_per_month,
+        updated_at = CURRENT_TIMESTAMP`,
       [
         tier,
         limit.cooldownMinutes,
