@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
 import TextField from "@mui/material/TextField";
@@ -128,12 +128,13 @@ function StoresMap({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerByIdRef = useRef<Map<number, L.Marker>>(new Map());
+  const hasLoadedOnce = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function resolvePoints() {
-      setResolving(true);
+      if (!hasLoadedOnce.current) setResolving(true);
       const collected: MarkerPoint[] = [];
 
       for (const item of locations) {
@@ -169,6 +170,7 @@ function StoresMap({
       }
 
       if (!cancelled) {
+        hasLoadedOnce.current = true;
         setPoints(collected);
         setResolving(false);
       }
@@ -367,6 +369,8 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
   const [page, setPage] = useState(1);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
 
+  const handleMarkerSelect = useCallback((id: number) => setSelectedLocationId(id), []);
+
   const distinct = Array.from(new Set(locations.map((l) => l.category)));
   const categories = ["Todos", ...distinct];
 
@@ -376,16 +380,20 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
   }, { Todos: locations.length });
 
   const normalizedTerm = normalizeText(searchTerm);
-  const filteredLocations = locations.filter((l) => {
-    const inCategory = activeCategory === "Todos" || l.category === activeCategory;
-    if (!inCategory) return false;
-    if (!normalizedTerm) return true;
-    return (
-      normalizeText(l.name).includes(normalizedTerm) ||
-      normalizeText(l.city).includes(normalizedTerm) ||
-      normalizeText(l.description).includes(normalizedTerm)
-    );
-  });
+  const filteredLocations = useMemo(
+    () =>
+      locations.filter((l) => {
+        const inCategory = activeCategory === "Todos" || l.category === activeCategory;
+        if (!inCategory) return false;
+        if (!normalizedTerm) return true;
+        return (
+          normalizeText(l.name).includes(normalizedTerm) ||
+          normalizeText(l.city).includes(normalizedTerm) ||
+          normalizeText(l.description).includes(normalizedTerm)
+        );
+      }),
+    [locations, activeCategory, normalizedTerm],
+  );
 
   useEffect(() => {
     setPage(1);
@@ -521,7 +529,7 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
           <StoresMap
             locations={filteredLocations}
             selectedLocationId={selectedLocationId}
-            onMarkerSelect={setSelectedLocationId}
+            onMarkerSelect={handleMarkerSelect}
           />
         </Box>
 
