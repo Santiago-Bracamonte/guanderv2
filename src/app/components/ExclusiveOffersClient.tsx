@@ -15,9 +15,9 @@ import PersonIcon from '@mui/icons-material/Person';
 import RoomOutlinedIcon from '@mui/icons-material/RoomOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 
-const TAG_GRADIENTS: Record<string, string> = {
-  Tienda: 'linear-gradient(135deg, #2e7d32 0%, #43a047 100%)',
-  Profesional: 'linear-gradient(135deg, #1565c0 0%, #42a5f5 100%)',
+const TAG_BACKGROUNDS: Record<string, string> = {
+  Tienda: '#d9eee1',
+  Profesional: '#cfe7d9',
 };
 
 export interface OfferCardItem {
@@ -69,7 +69,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
       {/* Filter bar */}
       <Card
         variant="outlined"
-        sx={{ mb: 3, border: '1px solid', borderColor: 'rgba(61,82,213,0.12)' }}
+        sx={{ mb: 3, border: '1px solid', borderColor: 'rgba(79,129,103,0.2)' }}
       >
         <CardContent sx={{ p: { xs: 2.5, sm: 3 }, '&:last-child': { pb: { xs: 2.5, sm: 3 } } }}>
           <Box
@@ -84,7 +84,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
           >
             <Typography
               variant="subtitle1"
-              sx={{ color: 'primary.main', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.75rem' }}
+              sx={{ color: '#2d654b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.75rem' }}
             >
               Filtrar beneficios
             </Typography>
@@ -124,13 +124,13 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
               variant="outlined"
               sx={{
                 border: '1px solid',
-                borderColor: 'rgba(61,82,213,0.1)',
+                borderColor: 'rgba(79,129,103,0.2)',
                 bgcolor: 'background.paper',
                 overflow: 'hidden',
                 transition: 'transform 0.25s, box-shadow 0.25s',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: '0 8px 28px rgba(61,82,213,0.12)',
+                  boxShadow: '0 8px 24px rgba(79,129,103,0.16)',
                 },
               }}
             >
@@ -138,7 +138,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
               <Box
                 sx={{
                   height: 130,
-                  background: TAG_GRADIENTS[offer.tag] ?? 'linear-gradient(135deg, #607d8b 0%, #90a4ae 100%)',
+                  background: TAG_BACKGROUNDS[offer.tag] ?? '#dfe7ea',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -146,9 +146,9 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
                 }}
               >
                 {offer.tag === 'Profesional' ? (
-                  <WorkspacePremiumIcon sx={{ fontSize: 52, color: 'rgba(255,255,255,0.35)' }} />
+                  <WorkspacePremiumIcon sx={{ fontSize: 52, color: 'rgba(31,75,59,0.32)' }} />
                 ) : (
-                  <LocalOfferIcon sx={{ fontSize: 52, color: 'rgba(255,255,255,0.35)' }} />
+                  <LocalOfferIcon sx={{ fontSize: 52, color: 'rgba(31,75,59,0.32)' }} />
                 )}
                 {/* Tag chip over the image */}
                 <Box
@@ -240,7 +240,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
             p: 5,
             textAlign: 'center',
             border: '2px dashed',
-            borderColor: 'rgba(61,82,213,0.15)',
+            borderColor: 'rgba(79,129,103,0.26)',
             borderRadius: 3,
           }}
         >

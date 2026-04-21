@@ -62,10 +62,10 @@ export default function Navbar() {
                   href={link.href}
                   size="small"
                   sx={{
-                    color: link.active ? "#43D696" : "rgba(255,255,255,0.85)",
+                    color: link.active ? "#b9e7d0" : "rgba(255,255,255,0.85)",
                     fontWeight: 600,
                     fontSize: "0.875rem",
-                    "&:hover": { color: "#43D696", bgcolor: "rgba(255,255,255,0.08)" },
+                    "&:hover": { color: "#b9e7d0", bgcolor: "rgba(255,255,255,0.08)" },
                   }}
                 >
                   {link.label}
@@ -79,13 +79,13 @@ export default function Navbar() {
             size="small"
             startIcon={<PersonIcon sx={{ fontSize: "1.2rem", transition: "transform 0.3s" }} />}
             sx={{
-              color: "#43D696",
+              color: "#b9e7d0",
               fontWeight: 600,
               fontSize: "0.875rem",
               textTransform: "none",
               px: 2.5,
               py: 1,
-              "&:hover": { bgcolor: "rgba(67,214,150,0.1)", "& svg": { transform: "translateY(-3px) rotate(8deg)" } },
+              "&:hover": { bgcolor: "rgba(185,231,208,0.14)", "& svg": { transform: "translateY(-3px) rotate(8deg)" } },
             }}
           >
             Iniciar sesión
@@ -98,7 +98,7 @@ export default function Navbar() {
             component={Link}
             href="/login"
             aria-label="Iniciar sesión"
-            sx={{ color: "#43D696", p: 1 }}
+            sx={{ color: "#b9e7d0", p: 1 }}
           >
             <PersonIcon />
           </IconButton>
@@ -116,7 +116,7 @@ export default function Navbar() {
       <Collapse in={mobileOpen}>
         <Box
           sx={{
-            bgcolor: "rgba(30, 40, 160, 0.97)",
+            bgcolor: "rgba(10, 59, 43, 0.97)",
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
             borderTop: "1px solid rgba(255,255,255,0.1)",
@@ -133,12 +133,12 @@ export default function Navbar() {
               fullWidth
               onClick={() => setMobileOpen(false)}
               sx={{
-                color: link.active ? "#43D696" : "rgba(255,255,255,0.85)",
+                color: link.active ? "#b9e7d0" : "rgba(255,255,255,0.85)",
                 fontWeight: 600,
                 fontSize: "1rem",
                 justifyContent: "flex-start",
                 py: 1.25,
-                "&:hover": { color: "#43D696", bgcolor: "rgba(255,255,255,0.05)" },
+                "&:hover": { color: "#b9e7d0", bgcolor: "rgba(255,255,255,0.05)" },
               }}
             >
               {link.label}

@@ -99,7 +99,7 @@ export default async function ExclusiveOffersSection() {
   return (
     <Box
       component="section"
-      sx={{ bgcolor: '#f0f2fc', py: { xs: 7, md: 10 }, width: '100%' }}
+      sx={{ bgcolor: '#edf8f2', py: { xs: 7, md: 10 }, width: '100%' }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 3, sm: 4 } }}>
         <Box sx={{ textAlign: 'center', mb: 6 }}>

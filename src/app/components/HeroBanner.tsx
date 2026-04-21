@@ -34,7 +34,7 @@ export default function HeroBanner() {
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(135deg, rgba(30,45,160,0.82) 0%, rgba(40,120,190,0.72) 55%, rgba(30,160,130,0.68) 100%)',
+          backgroundColor: 'rgba(28, 63, 48, 0.58)',
           zIndex: 1,
         }}
       />
@@ -67,7 +67,7 @@ export default function HeroBanner() {
               }}
             >
               Encuentra los mejores lugares{' '}
-              <Box component="span" sx={{ color: '#43D696' }}>
+              <Box component="span" sx={{ color: '#b9e7d0' }}>
                 pet-friendly cerca de ti
               </Box>
             </Typography>
@@ -99,12 +99,12 @@ export default function HeroBanner() {
                 variant="contained"
                 size="large"
                 sx={{
-                  bgcolor: 'white',
-                  color: '#1a1b3c',
+                  bgcolor: '#ecf6f0',
+                  color: '#1f4b3b',
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   fontSize: '0.75rem',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.92)' },
+                  '&:hover': { bgcolor: '#dff0e6' },
                 }}
               >
                 Explorar locales
@@ -115,14 +115,14 @@ export default function HeroBanner() {
                 variant="outlined"
                 size="large"
                 sx={{
-                  borderColor: 'rgba(255,255,255,0.7)',
+                  borderColor: 'rgba(236,246,240,0.85)',
                   color: 'white',
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   fontSize: '0.75rem',
                   '&:hover': {
-                    borderColor: 'white',
-                    bgcolor: 'rgba(255,255,255,0.1)',
+                    borderColor: '#ecf6f0',
+                    bgcolor: 'rgba(236,246,240,0.2)',
                   },
                 }}
               >
@@ -141,10 +141,10 @@ export default function HeroBanner() {
               borderRadius: '2rem',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(255,255,255,0.18)',
+              background: 'rgba(214,240,225,0.24)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255,255,255,0.3)',
+              border: '1px solid rgba(232,248,239,0.45)',
               boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
             }}
           >

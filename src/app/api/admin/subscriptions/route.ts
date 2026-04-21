@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/cloudflare-d1';
+import { ensureSubscriptionBenefitsColumn } from '@/lib/subscription-benefits';
 
 interface SubscriptionPayload {
   id_subscription?: number;
   name?: string;
   description?: string;
+  plan_benefits?: string;
   state?: string;
   amount?: number;
 }
@@ -16,8 +18,9 @@ function normalizeState(raw: string | undefined): string {
 
 export async function GET() {
   try {
+    await ensureSubscriptionBenefitsColumn();
     const plans = await queryD1(
-      'SELECT id_subscription, name, description, state, amount FROM subscription ORDER BY amount ASC',
+      'SELECT id_subscription, name, description, plan_benefits, state, amount FROM subscription ORDER BY amount ASC',
       [],
       { revalidate: false },
     );
@@ -37,6 +40,7 @@ export async function POST(request: Request) {
 
   const name = body.name?.trim();
   const description = body.description?.trim() ?? '';
+  const planBenefits = body.plan_benefits?.trim() ?? '';
   const amount = Number(body.amount);
   const state = normalizeState(body.state);
 
@@ -48,9 +52,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    await ensureSubscriptionBenefitsColumn();
     await queryD1(
-      'INSERT INTO subscription (name, description, state, amount) VALUES (?, ?, ?, ?)',
-      [name, description, state, amount],
+      'INSERT INTO subscription (name, description, plan_benefits, state, amount) VALUES (?, ?, ?, ?, ?)',
+      [name, description, planBenefits, state, amount],
       { revalidate: false },
     );
 
@@ -77,6 +82,7 @@ export async function PUT(request: Request) {
   const id = Number(body.id_subscription);
   const name = body.name?.trim();
   const description = body.description?.trim() ?? '';
+  const planBenefits = body.plan_benefits?.trim() ?? '';
   const amount = Number(body.amount);
   const state = normalizeState(body.state);
 
@@ -91,9 +97,10 @@ export async function PUT(request: Request) {
   }
 
   try {
+    await ensureSubscriptionBenefitsColumn();
     await queryD1(
-      'UPDATE subscription SET name = ?, description = ?, state = ?, amount = ? WHERE id_subscription = ?',
-      [name, description, state, amount, id],
+      'UPDATE subscription SET name = ?, description = ?, plan_benefits = ?, state = ?, amount = ? WHERE id_subscription = ?',
+      [name, description, planBenefits, state, amount, id],
       { revalidate: false },
     );
     return NextResponse.json({ success: true });

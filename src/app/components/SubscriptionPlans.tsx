@@ -21,10 +21,10 @@ type Subscription = {
 };
 
 const planVisuals = [
-  { icon: <ShieldIcon />, color: '#3D52D5', popular: false },
-  { icon: <StarIcon />, color: '#3D52D5', popular: true },
-  { icon: <RocketLaunchIcon />, color: '#8B5CF6', popular: false },
-  { icon: <BoltIcon />, color: '#A855F7', popular: false },
+  { icon: <ShieldIcon />, color: '#166534', popular: false },
+  { icon: <StarIcon />, color: '#15803d', popular: true },
+  { icon: <RocketLaunchIcon />, color: '#059669', popular: false },
+  { icon: <BoltIcon />, color: '#047857', popular: false },
 ] as const;
 
 function formatAmount(amount: number): string {
@@ -82,13 +82,14 @@ export default async function SubscriptionPlans() {
                   <Chip
                     icon={<StarIcon sx={{ fontSize: '14px !important' }} />}
                     label="MÁS POPULAR"
-                    color="primary"
                     size="small"
                     sx={{
                       position: 'absolute',
                       top: 0,
                       left: '50%',
                       transform: 'translateX(-50%)',
+                      bgcolor: '#166534',
+                      color: 'white',
                       fontWeight: 800,
                       letterSpacing: '0.08em',
                       px: 1,
@@ -103,13 +104,13 @@ export default async function SubscriptionPlans() {
                     flexDirection: 'column',
                     position: 'relative',
                     border: '2px solid',
-                    borderColor: visual.popular ? 'primary.main' : 'rgba(61,82,213,0.12)',
+                    borderColor: visual.popular ? '#15803d' : 'rgba(22,101,52,0.16)',
                     boxShadow: visual.popular
-                      ? '0 8px 40px rgba(61,82,213,0.22)'
-                      : '0 2px 16px rgba(61,82,213,0.07)',
+                      ? '0 8px 40px rgba(22,101,52,0.24)'
+                      : '0 2px 16px rgba(22,101,52,0.1)',
                     transition: 'box-shadow 0.25s, transform 0.25s',
                     '&:hover': {
-                      boxShadow: '0 12px 48px rgba(61,82,213,0.2)',
+                      boxShadow: '0 12px 48px rgba(22,101,52,0.22)',
                       transform: 'translateY(-4px)',
                     },
                   }}
@@ -140,7 +141,7 @@ export default async function SubscriptionPlans() {
                     </Typography>
                   </Box>
 
-                  <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid', borderColor: 'rgba(61,82,213,0.08)' }}>
+                  <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid', borderColor: 'rgba(22,101,52,0.12)' }}>
                     <Button
                       variant={visual.popular ? 'contained' : 'outlined'}
                       fullWidth
@@ -172,11 +173,11 @@ export default async function SubscriptionPlans() {
               gap: 1,
               bgcolor: 'background.paper',
               border: '1px solid',
-              borderColor: 'rgba(61,82,213,0.12)',
+              borderColor: 'rgba(22,101,52,0.16)',
               borderRadius: '50px',
               px: 3,
               py: 1.5,
-              boxShadow: '0 2px 12px rgba(61,82,213,0.06)',
+              boxShadow: '0 2px 12px rgba(22,101,52,0.1)',
             }}
           >
             <InfoOutlinedIcon sx={{ color: 'warning.main', fontSize: 18 }} />

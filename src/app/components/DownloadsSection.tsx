@@ -10,7 +10,7 @@ export default function DownloadsSection() {
       component="section"
       sx={{
         position: 'relative',
-        bgcolor: '#1a1b3c',
+        bgcolor: '#ecf6f0',
         overflow: 'hidden',
         py: { xs: 8, md: 12 },
         width: '100%',
@@ -25,7 +25,7 @@ export default function DownloadsSection() {
           width: '50%',
           height: '70%',
           borderRadius: '50%',
-          bgcolor: 'rgba(67,214,150,0.06)',
+          bgcolor: 'rgba(132,191,159,0.1)',
           filter: 'blur(80px)',
           pointerEvents: 'none',
         }}
@@ -38,7 +38,7 @@ export default function DownloadsSection() {
           width: '50%',
           height: '70%',
           borderRadius: '50%',
-          bgcolor: 'rgba(61,82,213,0.08)',
+          bgcolor: 'rgba(160,214,186,0.16)',
           filter: 'blur(80px)',
           pointerEvents: 'none',
         }}
@@ -48,19 +48,19 @@ export default function DownloadsSection() {
         <Typography
           variant="h2"
           sx={{
-            color: 'white',
+            color: '#1f4b3b',
             fontSize: { xs: '2rem', md: '2.75rem', lg: '3.25rem' },
             mb: 3,
             textWrap: 'balance',
           }}
         >
           Conecta tu mascota con lugares{' '}
-          <Box component="span" sx={{ color: '#43D696' }}>pet-friendly</Box>
+          <Box component="span" sx={{ color: '#6ea88a' }}>pet-friendly</Box>
         </Typography>
 
         <Typography
           sx={{
-            color: 'rgba(255,255,255,0.7)',
+            color: '#486556',
             fontSize: { xs: '1rem', md: '1.125rem' },
             maxWidth: 560,
             mx: 'auto',
@@ -77,16 +77,16 @@ export default function DownloadsSection() {
           size="large"
           startIcon={<PhoneAndroidIcon />}
           sx={{
-            bgcolor: 'white',
-            color: '#1a1b3c',
+            bgcolor: '#79b795',
+            color: '#ffffff',
             fontWeight: 800,
             fontSize: '1rem',
             px: 4,
             py: 1.75,
-            boxShadow: '0 8px 30px rgba(0,0,0,0.18)',
+            boxShadow: '0 8px 24px rgba(31,75,59,0.18)',
             '&:hover': {
-              bgcolor: 'rgba(255,255,255,0.95)',
-              boxShadow: '0 12px 40px rgba(255,255,255,0.15)',
+              bgcolor: '#6ca886',
+              boxShadow: '0 10px 28px rgba(31,75,59,0.22)',
               transform: 'translateY(-2px)',
             },
             transition: 'all 0.25s',

@@ -51,7 +51,7 @@ export default function Footer() {
           {/* Brand */}
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Typography sx={{ color: '#43D696', fontSize: '1.25rem', fontWeight: 900 }}>✶</Typography>
+              <Typography sx={{ color: '#b9e7d0', fontSize: '1.25rem', fontWeight: 900 }}>✶</Typography>
               <Typography variant="h6" sx={{ color: 'white', fontWeight: 800 }}>Guander</Typography>
             </Box>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
@@ -71,7 +71,7 @@ export default function Footer() {
                   <MuiLink
                     href={link.href}
                     underline="hover"
-                    sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem', '&:hover': { color: '#43D696' }, transition: 'color 0.2s' }}
+                    sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem', '&:hover': { color: '#b9e7d0' }, transition: 'color 0.2s' }}
                   >
                     {link.label}
                   </MuiLink>
@@ -91,7 +91,7 @@ export default function Footer() {
                   <MuiLink
                     href={link.href}
                     underline="hover"
-                    sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem', '&:hover': { color: '#43D696' }, transition: 'color 0.2s' }}
+                    sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem', '&:hover': { color: '#b9e7d0' }, transition: 'color 0.2s' }}
                   >
                     {link.label}
                   </MuiLink>
@@ -114,7 +114,7 @@ export default function Footer() {
                   sx={{
                     color: 'rgba(255,255,255,0.55)',
                     display: 'flex',
-                    '&:hover': { color: '#43D696' },
+                    '&:hover': { color: '#b9e7d0' },
                     transition: 'color 0.2s',
                   }}
                 >

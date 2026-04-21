@@ -10,6 +10,7 @@ export type StoreSummaryRow = {
   category_name: string | null;
   plan_name: string | null;
   plan_amount: number | null;
+  plan_benefits: string | null;
   plan_state: string | null;
   plan_expiration_date: string | null;
   payout_state: string | null;
@@ -22,6 +23,14 @@ export type ReviewRow = {
   date: string;
   customer_name: string;
   customer_last_name: string;
+};
+
+export type ReviewReplyRow = {
+  id_comment_reply: number;
+  fk_comment_id: number;
+  body: string;
+  date: string;
+  responder_name: string;
 };
 
 export type PurchaseRow = {
@@ -83,6 +92,7 @@ export type SubscriptionPlanOption = {
   description: string;
   state: number;
   amount: number;
+  plan_benefits: string | null;
 };
 
 export type DashboardData = {
@@ -95,6 +105,7 @@ export type DashboardData = {
   monthlySalesAmount: number;
   monthlySalesCount: number;
   reviews: ReviewRow[];
+  reviewReplies: ReviewReplyRow[];
   purchases: PurchaseRow[];
   coupons: CouponRow[];
   benefits: BenefitRow[];

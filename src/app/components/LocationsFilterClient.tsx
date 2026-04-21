@@ -16,15 +16,6 @@ import L from "leaflet";
 import SearchIcon from "@mui/icons-material/Search";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 
-const CATEGORY_GRADIENTS: Record<string, { from: string; to: string }> = {
-  Veterinaria: { from: "#3D52D5", to: "#4A9FD4" },
-  "Pet Shop": { from: "#1d7a4f", to: "#43D696" },
-  "Cafetería": { from: "#b45309", to: "#f59e0b" },
-  Restaurante: { from: "#be185d", to: "#f472b6" },
-  Grooming: { from: "#7c3aed", to: "#a78bfa" },
-  Resort: { from: "#0f766e", to: "#34d399" },
-};
-
 export interface LocationItem {
   id: number;
   name: string;
@@ -123,11 +114,20 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   return { lat, lng };
 }
 
-function StoresMap({ locations }: { locations: LocationItem[] }) {
+function StoresMap({
+  locations,
+  selectedLocationId,
+  onMarkerSelect,
+}: {
+  locations: LocationItem[];
+  selectedLocationId: number | null;
+  onMarkerSelect: (id: number) => void;
+}) {
   const [points, setPoints] = useState<MarkerPoint[]>([]);
   const [resolving, setResolving] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const markerByIdRef = useRef<Map<number, L.Marker>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -204,11 +204,13 @@ function StoresMap({ locations }: { locations: LocationItem[] }) {
         map.removeLayer(layer);
       }
     });
+    markerByIdRef.current.clear();
 
     const bounds = L.latLngBounds([]);
 
     points.forEach((point) => {
       const marker = L.marker([point.lat, point.lng], { icon: guanderIcon });
+      marker.on("click", () => onMarkerSelect(point.id));
       const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${point.lat},${point.lng}`;
       const imageHtml = point.image
         ? `<img
@@ -222,7 +224,7 @@ function StoresMap({ locations }: { locations: LocationItem[] }) {
             href="${escapeHtml(point.image)}"
             target="_blank"
             rel="noopener noreferrer"
-            style="display:inline-block;margin-top:9px;padding:8px 12px;border-radius:999px;background:linear-gradient(135deg,#3D52D5 0%,#4A9FD4 100%);color:#ffffff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:0.01em;box-shadow:0 6px 16px rgba(61,82,213,0.28);border:1px solid rgba(255,255,255,0.32);"
+            style="display:inline-block;margin-top:9px;padding:8px 12px;border-radius:999px;background:#78b593;color:#ffffff;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:0.01em;box-shadow:0 6px 16px rgba(58,97,76,0.25);border:1px solid rgba(255,255,255,0.32);"
           >
             Ver foto completa ↗
           </a>`
@@ -245,6 +247,7 @@ function StoresMap({ locations }: { locations: LocationItem[] }) {
         </div>`,
       );
       marker.addTo(map);
+      markerByIdRef.current.set(point.id, marker);
       bounds.extend([point.lat, point.lng]);
     });
 
@@ -255,7 +258,19 @@ function StoresMap({ locations }: { locations: LocationItem[] }) {
     // Force recalculation after layout settles to avoid partially rendered tiles.
     requestAnimationFrame(() => map.invalidateSize());
     setTimeout(() => map.invalidateSize(), 120);
-  }, [points]);
+  }, [onMarkerSelect, points]);
+
+  useEffect(() => {
+    if (!selectedLocationId || !mapRef.current) return;
+    const marker = markerByIdRef.current.get(selectedLocationId);
+    if (!marker) return;
+
+    const map = mapRef.current;
+    const latLng = marker.getLatLng();
+    const nextZoom = Math.max(map.getZoom(), 15);
+    map.flyTo(latLng, nextZoom, { duration: 0.65 });
+    marker.openPopup();
+  }, [selectedLocationId]);
 
   useEffect(() => {
     const container = mapContainerRef.current;
@@ -307,11 +322,11 @@ function StoresMap({ locations }: { locations: LocationItem[] }) {
     <Card
       variant="outlined"
       sx={{
-        border: "1px solid rgba(61,82,213,0.14)",
+        border: "1px solid rgba(79,129,103,0.24)",
         borderRadius: 2,
         overflow: "hidden",
-        background: "linear-gradient(180deg, rgba(243,247,255,0.96) 0%, rgba(255,255,255,0.98) 32%, #fff 100%)",
-        boxShadow: "0 16px 38px rgba(61,82,213,0.08)",
+        backgroundColor: "#f7fbf8",
+        boxShadow: "0 12px 30px rgba(79,129,103,0.12)",
       }}
     >
       <CardContent sx={{ p: { xs: 1.4, sm: 1.8 }, "&:last-child": { pb: { xs: 1.4, sm: 1.8 } } }}>
@@ -337,7 +352,7 @@ function StoresMap({ locations }: { locations: LocationItem[] }) {
             height: "clamp(300px, 44vh, 430px)",
             borderRadius: 0,
             overflow: "hidden",
-            border: "1px solid rgba(61,82,213,0.14)",
+            border: "1px solid rgba(79,129,103,0.24)",
             boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.45), 0 8px 24px rgba(17,24,39,0.12)",
           }}
         />
@@ -350,6 +365,7 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
   const [activeCategory, setActiveCategory] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
 
   const distinct = Array.from(new Set(locations.map((l) => l.category)));
   const categories = ["Todos", ...distinct];
@@ -373,6 +389,7 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
 
   useEffect(() => {
     setPage(1);
+    setSelectedLocationId(null);
   }, [activeCategory, searchTerm]);
 
   const pageSize = 6;
@@ -387,7 +404,7 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
 
   return (
     <>
-      <Card variant="outlined" sx={{ mb: 3, border: "1px solid", borderColor: "rgba(61,82,213,0.12)" }}>
+      <Card variant="outlined" sx={{ mb: 3, border: "1px solid", borderColor: "rgba(79,129,103,0.2)" }}>
         <CardContent sx={{ p: { xs: 2.5, sm: 3 }, "&:last-child": { pb: { xs: 2.5, sm: 3 } } }}>
           <Box
             sx={{
@@ -402,7 +419,7 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
             <Typography
               variant="subtitle1"
               sx={{
-                color: "primary.main",
+                color: "#2d654b",
                 fontWeight: 800,
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
@@ -440,7 +457,17 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
                 setSearchTerm("");
                 setPage(1);
               }}
-              sx={{ whiteSpace: "nowrap", px: 3, py: 1 }}
+              sx={{
+                whiteSpace: "nowrap",
+                px: 3,
+                py: 1,
+                bgcolor: "#78b593",
+                "&:hover": { bgcolor: "#6ca886" },
+                "&.Mui-disabled": {
+                  bgcolor: "rgba(120,181,147,0.35)",
+                  color: "rgba(45,101,75,0.6)",
+                },
+              }}
             >
               Limpiar filtros
             </Button>
@@ -452,10 +479,24 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
                 key={cat}
                 label={`${cat} (${categoryCount[cat] ?? 0})`}
                 onClick={() => setActiveCategory(cat)}
-                color={activeCategory === cat ? "primary" : "default"}
                 variant={activeCategory === cat ? "filled" : "outlined"}
                 size="small"
-                sx={{ cursor: "pointer" }}
+                sx={{
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  ...(activeCategory === cat
+                    ? {
+                        bgcolor: "#78b593",
+                        color: "#ffffff",
+                        border: "1px solid #78b593",
+                        "&:hover": { bgcolor: "#6ca886" },
+                      }
+                    : {
+                        color: "#2d654b",
+                        border: "1px solid rgba(79,129,103,0.3)",
+                        "&:hover": { bgcolor: "rgba(120,181,147,0.12)" },
+                      }),
+                }}
               />
             ))}
           </Box>
@@ -477,7 +518,11 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
             top: { lg: 86 },
           }}
         >
-          <StoresMap locations={filteredLocations} />
+          <StoresMap
+            locations={filteredLocations}
+            selectedLocationId={selectedLocationId}
+            onMarkerSelect={setSelectedLocationId}
+          />
         </Box>
 
         <Box
@@ -493,17 +538,38 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
               <Card
                 key={location.id}
                 variant="outlined"
+                onClick={() => setSelectedLocationId(location.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedLocationId(location.id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
                 sx={{
-                  border: "1px solid rgba(61,82,213,0.11)",
+                  border: "1px solid rgba(79,129,103,0.2)",
                   overflow: "hidden",
                   borderRadius: 2,
-                  background: "linear-gradient(180deg, #ffffff 0%, #f9fbff 100%)",
-                  boxShadow: "0 6px 16px rgba(27,39,94,0.08)",
+                  backgroundColor: "#ffffff",
+                  boxShadow:
+                    selectedLocationId === location.id
+                      ? "0 14px 30px rgba(79,129,103,0.2)"
+                      : "0 6px 14px rgba(79,129,103,0.12)",
                   transition: "transform 0.25s, box-shadow 0.25s, border-color 0.25s",
+                  cursor: "pointer",
+                  borderColor:
+                    selectedLocationId === location.id
+                      ? "rgba(79,129,103,0.34)"
+                      : "rgba(79,129,103,0.2)",
                   "&:hover": {
                     transform: "translateY(-5px)",
-                    boxShadow: "0 14px 34px rgba(61,82,213,0.16)",
-                    borderColor: "rgba(61,82,213,0.24)",
+                    boxShadow: "0 14px 28px rgba(79,129,103,0.2)",
+                    borderColor: "rgba(79,129,103,0.32)",
+                  },
+                  "&:focus-visible": {
+                    outline: "2px solid #78b593",
+                    outlineOffset: 2,
                   },
                 }}
               >
@@ -513,11 +579,11 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
                       label={location.category}
                       size="small"
                       sx={{
-                        bgcolor: "rgba(61,82,213,0.1)",
-                        color: "#3044c6",
+                        bgcolor: "rgba(120,181,147,0.2)",
+                        color: "#2d654b",
                         fontWeight: 800,
                         fontSize: "0.65rem",
-                        border: "1px solid rgba(61,82,213,0.15)",
+                        border: "1px solid rgba(79,129,103,0.3)",
                       }}
                     />
                   </Box>
@@ -547,11 +613,11 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
                       px: 0.9,
                       py: 0.45,
                       borderRadius: 99,
-                      bgcolor: "rgba(61,82,213,0.09)",
+                      bgcolor: "rgba(120,181,147,0.2)",
                     }}
                   >
-                    <LocationOnIcon sx={{ fontSize: 13, color: "primary.main" }} />
-                    <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700 }}>
+                    <LocationOnIcon sx={{ fontSize: 13, color: "#2d654b" }} />
+                    <Typography variant="caption" sx={{ color: "#2d654b", fontWeight: 700 }}>
                       {location.city}
                     </Typography>
                   </Box>
@@ -573,9 +639,20 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
                 count={totalPages}
                 page={currentPage}
                 onChange={(_, value) => setPage(value)}
-                color="primary"
                 shape="rounded"
                 size="small"
+                sx={{
+                  "& .MuiPaginationItem-root": {
+                    color: "#2d654b",
+                    borderColor: "rgba(79,129,103,0.3)",
+                  },
+                  "& .MuiPaginationItem-root.Mui-selected": {
+                    bgcolor: "#78b593",
+                    color: "#fff",
+                    borderColor: "#78b593",
+                    "&:hover": { bgcolor: "#6ca886" },
+                  },
+                }}
               />
             </Box>
           )}
@@ -589,7 +666,7 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
             p: 5,
             textAlign: "center",
             border: "2px dashed",
-            borderColor: "rgba(61,82,213,0.15)",
+            borderColor: "rgba(79,129,103,0.28)",
             borderRadius: 2,
           }}
         >

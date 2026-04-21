@@ -56,11 +56,11 @@ export default function ContactSection() {
       backgroundColor: 'rgba(255,255,255,0.07)',
       color: 'white',
       '& fieldset': { borderColor: 'rgba(255,255,255,0.18)' },
-      '&:hover fieldset': { borderColor: 'rgba(67,214,150,0.5)' },
-      '&.Mui-focused fieldset': { borderColor: '#43D696' },
+      '&:hover fieldset': { borderColor: 'rgba(185,231,208,0.5)' },
+      '&.Mui-focused fieldset': { borderColor: '#b9e7d0' },
     },
     '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)' },
-    '& .MuiInputLabel-root.Mui-focused': { color: '#43D696' },
+    '& .MuiInputLabel-root.Mui-focused': { color: '#b9e7d0' },
     '& .MuiInputBase-input': { color: 'white' },
     '& .MuiInputBase-input::placeholder': { color: 'rgba(255,255,255,0.35)' },
   };
@@ -87,14 +87,14 @@ export default function ContactSection() {
                 width: 56,
                 height: 56,
                 borderRadius: '14px',
-                backgroundColor: 'rgba(67,214,150,0.15)',
+                backgroundColor: 'rgba(185,231,208,0.18)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 mb: 3,
               }}
             >
-              <EmailOutlinedIcon sx={{ color: '#43D696', fontSize: 28 }} />
+              <EmailOutlinedIcon sx={{ color: '#b9e7d0', fontSize: 28 }} />
             </Box>
             <Typography
               variant="h2"
@@ -107,7 +107,7 @@ export default function ContactSection() {
               }}
             >
               ¿Tenés alguna{' '}
-              <Box component="span" sx={{ color: '#43D696' }}>
+              <Box component="span" sx={{ color: '#b9e7d0' }}>
                 pregunta?
               </Box>
             </Typography>
@@ -128,7 +128,7 @@ export default function ContactSection() {
                 { label: 'Atención', value: 'Lunes a viernes de 9 a 18h' },
               ].map(({ label, value }) => (
                 <Box key={label} sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#43D696', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#b9e7d0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {label}
                   </Typography>
                   <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9375rem' }}>
@@ -153,7 +153,7 @@ export default function ContactSection() {
           >
             {success ? (
               <Box sx={{ textAlign: 'center', py: 4 }}>
-                <CheckCircleOutlineIcon sx={{ fontSize: 56, color: '#43D696', mb: 2 }} />
+                <CheckCircleOutlineIcon sx={{ fontSize: 56, color: '#b9e7d0', mb: 2 }} />
                 <Typography variant="h6" sx={{ color: 'white', fontWeight: 700, mb: 1 }}>
                   ¡Mensaje enviado!
                 </Typography>
@@ -164,12 +164,12 @@ export default function ContactSection() {
                   variant="outlined"
                   onClick={() => setSuccess(false)}
                   sx={{
-                    borderColor: '#43D696',
-                    color: '#43D696',
+                    borderColor: '#b9e7d0',
+                    color: '#b9e7d0',
                     borderRadius: '10px',
                     textTransform: 'none',
                     fontWeight: 600,
-                    '&:hover': { borderColor: '#2ec988', backgroundColor: 'rgba(67,214,150,0.1)' },
+                    '&:hover': { borderColor: '#a8ddc3', backgroundColor: 'rgba(185,231,208,0.12)' },
                   }}
                 >
                   Enviar otro mensaje
@@ -239,10 +239,10 @@ export default function ContactSection() {
                     fontWeight: 700,
                     fontSize: '0.9375rem',
                     textTransform: 'none',
-                    backgroundColor: '#43D696',
+                    backgroundColor: '#9fd5b9',
                     color: '#1a1b3c',
-                    '&:hover': { backgroundColor: '#2ec988' },
-                    '&:disabled': { backgroundColor: 'rgba(67,214,150,0.4)', color: '#1a1b3c' },
+                    '&:hover': { backgroundColor: '#90c9ac' },
+                    '&:disabled': { backgroundColor: 'rgba(159,213,185,0.45)', color: '#1a1b3c' },
                   }}
                 >
                   {loading ? 'Enviando...' : 'Enviar mensaje'}
