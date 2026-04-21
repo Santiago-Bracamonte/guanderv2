@@ -232,14 +232,6 @@ export default async function AdminDashboardPage() {
       iconColor: "#3d6b4f",
     },
     {
-      label: "Favoritos del Mes",
-      value: stats.favoritesMonth.toLocaleString("es-AR"),
-      growth: `+${stats.favoritesGrowth} este mes`,
-      icon: Phone,
-      iconBg: "#d5ddd8",
-      iconColor: "#173a2d",
-    },
-    {
       label: "Suscripciones Activas",
       value: stats.activeSubscriptions.toLocaleString("es-AR"),
       growth: `+${stats.subscriptionsGrowth} este mes`,
@@ -293,22 +285,10 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Stats Cards Row 1 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {statCards.map((card) => (
           <StatCard key={card.label} {...card} />
         ))}
-      </div>
-
-      {/* Stats Card Row 2 — Growth */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Tasa de Crecimiento"
-          value={`+${stats.growthRate}%`}
-          growth="Tendencia alcista"
-          icon={TrendingUp}
-          iconBg="#fde2e2"
-          iconColor="#c0392b"
-        />
       </div>
 
       {/* Dashboard General Section Title */}

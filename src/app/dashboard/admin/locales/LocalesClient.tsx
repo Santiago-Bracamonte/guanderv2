@@ -1249,20 +1249,6 @@ export default function LocalesClient({
                           </>
                         )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <span
-                          className="text-sm"
-                          style={{ color: "var(--guander-muted)" }}
-                        >
-                          Favoritos :
-                        </span>
-                        <span
-                          className="text-sm font-bold"
-                          style={{ color: "var(--guander-ink)" }}
-                        >
-                          {locale.favorites}
-                        </span>
-                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <button
