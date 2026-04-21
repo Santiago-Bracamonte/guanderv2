@@ -269,8 +269,8 @@ function StoresMap({
 
     const map = mapRef.current;
     const latLng = marker.getLatLng();
-    const nextZoom = Math.max(map.getZoom(), 15);
-    map.flyTo(latLng, nextZoom, { duration: 0.65 });
+    // panTo mantiene el zoom actual → los tiles ya están cargados, no hay cuadrados azules
+    map.panTo(latLng, { animate: true, duration: 0.4 });
     marker.openPopup();
   }, [selectedLocationId]);
 

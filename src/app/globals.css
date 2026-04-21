@@ -34,14 +34,35 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Leaflet + Tailwind compatibility fix */
+/* ── Leaflet + Tailwind v4 compatibility ─────────────────── */
 .leaflet-container {
   width: 100%;
   height: 100%;
   z-index: 0;
 }
 
-.leaflet-container img,
-.leaflet-container .leaflet-tile {
+/* Tailwind v4 preflight resets img (max-width:100%, height:auto)
+   lo que rompe los tiles de Leaflet (256×256 px posicionados con transform) */
+.leaflet-pane img,
+.leaflet-tile-pane img,
+.leaflet-tile {
   max-width: none !important;
+  height: auto;
+  display: inline !important;
+  box-sizing: content-box !important;
+}
+
+/* Iconos de marcadores */
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  max-width: none !important;
+  display: inline !important;
+  box-sizing: content-box !important;
+}
+
+/* Imágenes dentro del popup */
+.leaflet-popup-content img {
+  display: block !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
