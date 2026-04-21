@@ -13,6 +13,7 @@ interface BenefitRow {
   entity_name?: string;
   entity_address?: string;
   entity_category?: string;
+  entity_image?: string;
 }
 
 function toOfferItems(rows: BenefitRow[], source: "Profesional" | "Tienda"): OfferCardItem[] {
@@ -30,6 +31,7 @@ function toOfferItems(rows: BenefitRow[], source: "Profesional" | "Tienda"): Off
       entityName: row.entity_name?.trim() || undefined,
       entityCategory: row.entity_category?.trim() || undefined,
       entityAddress: row.entity_address?.trim() || undefined,
+      entityImage: row.entity_image?.trim() || undefined,
     };
   });
 }
@@ -59,7 +61,8 @@ async function loadOffersFromD1(): Promise<OfferCardItem[]> {
         bs.percentage,
         s.name      AS entity_name,
         s.address   AS entity_address,
-        c.name      AS entity_category
+        c.name      AS entity_category,
+        s.image_url AS entity_image
       FROM benefit_store bs
       JOIN stores s    ON bs.fk_store      = s.id_store
       JOIN category c  ON s.fk_category    = c.id_category

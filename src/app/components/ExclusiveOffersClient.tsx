@@ -28,6 +28,7 @@ export interface OfferCardItem {
   entityName?: string;
   entityCategory?: string;
   entityAddress?: string;
+  entityImage?: string;
 }
 
 interface ExclusiveOffersClientProps {
@@ -134,7 +135,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
                 },
               }}
             >
-              {/* Image placeholder */}
+              {/* Store image / placeholder */}
               <Box
                 sx={{
                   height: 130,
@@ -143,9 +144,22 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
                   alignItems: 'center',
                   justifyContent: 'center',
                   position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
-                {offer.tag === 'Profesional' ? (
+                {offer.entityImage ? (
+                  <Box
+                    component="img"
+                    src={offer.entityImage}
+                    alt={offer.entityName ?? offer.title}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                  />
+                ) : offer.tag === 'Profesional' ? (
                   <WorkspacePremiumIcon sx={{ fontSize: 52, color: 'rgba(31,75,59,0.32)' }} />
                 ) : (
                   <LocalOfferIcon sx={{ fontSize: 52, color: 'rgba(31,75,59,0.32)' }} />
