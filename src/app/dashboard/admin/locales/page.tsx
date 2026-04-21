@@ -19,6 +19,10 @@ interface StoreRow {
   stars: number | null;
   fk_category: number | null;
   image_url: string | null;
+  fk_schedule: number | null;
+  week: string | null;
+  weekend: string | null;
+  sunday: string | null;
 }
 
 function inferType(stars: number | null, index: number): 'Premium' | 'Profesional' | 'Free' {
@@ -41,7 +45,11 @@ export default async function LocalesPage() {
 
   try {
     const stores = await queryD1<StoreRow>(
-      'SELECT id_store, name, description, address, location, stars, fk_category, image_url FROM stores ORDER BY id_store DESC',
+      `SELECT s.id_store, s.name, s.description, s.address, s.location, s.stars, s.fk_category, s.image_url, s.fk_schedule,
+              sch.week, sch.weekend, sch.sunday
+       FROM stores s
+       LEFT JOIN schedule sch ON sch.id_schedule = s.fk_schedule
+       ORDER BY s.id_store DESC`,
       [],
       { revalidate: false },
     );
@@ -70,16 +78,20 @@ export default async function LocalesPage() {
       address: store.address ?? '',
       location: store.location ?? '',
       image: store.image_url ?? PLACEHOLDER_IMAGES[i % PLACEHOLDER_IMAGES.length],
+      scheduleId: store.fk_schedule ?? null,
+      scheduleWeek: store.week ?? '',
+      scheduleWeekend: store.weekend ?? '',
+      scheduleSunday: store.sunday ?? '',
     }));
   } catch {
     // Fallback sample data when D1 is unavailable
     locales = [
-      { id: 1, name: 'Veterinaria PetCare', email: 'petcare@gmail.com', category: 'Veterinaria', categoryId: 1, rating: 4.9, favorites: 245, type: 'Premium', description: 'Cuidado integral para mascotas', address: 'Av. Corrientes 1234, CABA', location: '-34.603722,-58.381592', image: 'https://placehold.co/400x200/1f4b3b/ffffff?text=PetCare' },
-      { id: 2, name: 'Cafetería Guau', email: 'cafeguau@gmail.com', category: 'Cafetería', categoryId: 3, rating: 4.8, favorites: 50, type: 'Profesional', description: 'Café pet-friendly', address: 'Av. Santa Fe 456, CABA', location: '-34.588601,-58.392517', image: 'https://placehold.co/400x200/3d6b4f/ffffff?text=Guau' },
-      { id: 3, name: 'Pet Shop Central', email: 'petshop@gmail.com', category: 'Pet Shop', categoryId: 2, rating: 4.9, favorites: 451, type: 'Premium', description: 'Todo para tu mascota', address: 'Florida 789, CABA', location: '-34.603449,-58.374233', image: 'https://placehold.co/400x200/7d8b6a/ffffff?text=PetShop' },
-      { id: 4, name: 'Grooming Elegante', email: 'grooming@gmail.com', category: 'Grooming', categoryId: 5, rating: 4.5, favorites: 80, type: 'Profesional', description: 'Peluquería canina de autor', address: 'Av. Callao 321, CABA', location: '-34.603346,-58.390744', image: 'https://placehold.co/400x200/3d6b6b/ffffff?text=Grooming' },
-      { id: 5, name: 'Resort Canino', email: 'resort@gmail.com', category: 'Resort', categoryId: 6, rating: 4.7, favorites: 320, type: 'Premium', description: 'Hospedaje de lujo para perros', address: 'Ruta 8, Pilar', location: '-34.458397,-58.913185', image: 'https://placehold.co/400x200/173a2d/ffffff?text=Resort' },
-      { id: 6, name: 'Restaurante DogFriendly', email: 'dogfriendly@gmail.com', category: 'Restaurante', categoryId: 4, rating: 4.6, favorites: 150, type: 'Profesional', description: 'Restaurante con área para mascotas', address: 'Palermo 567, CABA', location: '-34.588924,-58.430871', image: 'https://placehold.co/400x200/5a7a5a/ffffff?text=DogFriendly' },
+      { id: 1, name: 'Veterinaria PetCare', email: 'petcare@gmail.com', category: 'Veterinaria', categoryId: 1, rating: 4.9, favorites: 245, type: 'Premium', description: 'Cuidado integral para mascotas', address: 'Av. Corrientes 1234, CABA', location: '-34.603722,-58.381592', image: 'https://placehold.co/400x200/1f4b3b/ffffff?text=PetCare', scheduleId: null, scheduleWeek: '', scheduleWeekend: '', scheduleSunday: '' },
+      { id: 2, name: 'Cafetería Guau', email: 'cafeguau@gmail.com', category: 'Cafetería', categoryId: 3, rating: 4.8, favorites: 50, type: 'Profesional', description: 'Café pet-friendly', address: 'Av. Santa Fe 456, CABA', location: '-34.588601,-58.392517', image: 'https://placehold.co/400x200/3d6b4f/ffffff?text=Guau', scheduleId: null, scheduleWeek: '', scheduleWeekend: '', scheduleSunday: '' },
+      { id: 3, name: 'Pet Shop Central', email: 'petshop@gmail.com', category: 'Pet Shop', categoryId: 2, rating: 4.9, favorites: 451, type: 'Premium', description: 'Todo para tu mascota', address: 'Florida 789, CABA', location: '-34.603449,-58.374233', image: 'https://placehold.co/400x200/7d8b6a/ffffff?text=PetShop', scheduleId: null, scheduleWeek: '', scheduleWeekend: '', scheduleSunday: '' },
+      { id: 4, name: 'Grooming Elegante', email: 'grooming@gmail.com', category: 'Grooming', categoryId: 5, rating: 4.5, favorites: 80, type: 'Profesional', description: 'Peluquería canina de autor', address: 'Av. Callao 321, CABA', location: '-34.603346,-58.390744', image: 'https://placehold.co/400x200/3d6b6b/ffffff?text=Grooming', scheduleId: null, scheduleWeek: '', scheduleWeekend: '', scheduleSunday: '' },
+      { id: 5, name: 'Resort Canino', email: 'resort@gmail.com', category: 'Resort', categoryId: 6, rating: 4.7, favorites: 320, type: 'Premium', description: 'Hospedaje de lujo para perros', address: 'Ruta 8, Pilar', location: '-34.458397,-58.913185', image: 'https://placehold.co/400x200/173a2d/ffffff?text=Resort', scheduleId: null, scheduleWeek: '', scheduleWeekend: '', scheduleSunday: '' },
+      { id: 6, name: 'Restaurante DogFriendly', email: 'dogfriendly@gmail.com', category: 'Restaurante', categoryId: 4, rating: 4.6, favorites: 150, type: 'Profesional', description: 'Restaurante con área para mascotas', address: 'Palermo 567, CABA', location: '-34.588924,-58.430871', image: 'https://placehold.co/400x200/5a7a5a/ffffff?text=DogFriendly', scheduleId: null, scheduleWeek: '', scheduleWeekend: '', scheduleSunday: '' },
     ];
   }
 

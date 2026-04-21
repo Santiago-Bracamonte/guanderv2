@@ -27,6 +27,10 @@ export interface LocaleItem {
   address: string;
   location: string;
   image: string;
+  scheduleId: number | null;
+  scheduleWeek: string;
+  scheduleWeekend: string;
+  scheduleSunday: string;
 }
 
 interface GeocodeSuggestion {
@@ -377,6 +381,9 @@ export default function LocalesClient({
   const [showMapPicker, setShowMapPicker] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [formWeek, setFormWeek] = useState("");
+  const [formWeekend, setFormWeekend] = useState("");
+  const [formSunday, setFormSunday] = useState("");
 
   // Load categories from API
   useEffect(() => {
@@ -456,6 +463,9 @@ export default function LocalesClient({
     setAddressSuggestions([]);
     setShowAddressSuggestions(false);
     setFormErrors({});
+    setFormWeek(locale.scheduleWeek ?? "");
+    setFormWeekend(locale.scheduleWeekend ?? "");
+    setFormSunday(locale.scheduleSunday ?? "");
     setEditLocale(locale);
   };
 
@@ -472,6 +482,9 @@ export default function LocalesClient({
     setAddressSuggestions([]);
     setShowAddressSuggestions(false);
     setFormErrors({});
+    setFormWeek("");
+    setFormWeekend("");
+    setFormSunday("");
     setShowAdd(true);
   };
 
@@ -655,6 +668,9 @@ export default function LocalesClient({
           stars: formStars ? parseFloat(formStars) : null,
           fk_category: formCategory,
           image_url: imageUrl,
+          schedule_week: formWeek.trim() || null,
+          schedule_weekend: formWeekend.trim() || null,
+          schedule_sunday: formSunday.trim() || null,
         }),
       });
       setLocales((prev) =>
@@ -670,6 +686,9 @@ export default function LocalesClient({
                 category: getCategoryNameById(formCategory),
                 categoryId: formCategory,
                 image: imageUrl,
+                scheduleWeek: formWeek.trim(),
+                scheduleWeekend: formWeekend.trim(),
+                scheduleSunday: formSunday.trim(),
               }
             : l,
         ),
@@ -1083,6 +1102,45 @@ export default function LocalesClient({
           )}
         </div>
         {formErrors.image && <p className="text-xs mt-1 text-red-500">{formErrors.image}</p>}
+      </div>
+      {/* Horarios */}
+      <div>
+        <label
+          className="block text-sm font-medium mb-2"
+          style={{ color: "var(--guander-ink)" }}
+        >
+          Horarios
+        </label>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Días de semana", value: formWeek, setter: setFormWeek },
+            { label: "Fin de semana", value: formWeekend, setter: setFormWeekend },
+            { label: "Domingo", value: formSunday, setter: setFormSunday },
+          ].map(({ label, value, setter }) => (
+            <div key={label}>
+              <label
+                className="block text-xs font-medium mb-1"
+                style={{ color: "var(--guander-muted)" }}
+              >
+                {label}
+              </label>
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => setter(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{
+                  border: "1px solid var(--guander-border)",
+                  color: "var(--guander-ink)",
+                }}
+                placeholder="09:00–18:00"
+              />
+            </div>
+          ))}
+        </div>
+        <p className="text-xs mt-1.5" style={{ color: "var(--guander-muted)" }}>
+          Ej: 09:00–18:00 · Escribe &quot;Cerrado&quot; si no abre ese día.
+        </p>
       </div>
     </div>
   );

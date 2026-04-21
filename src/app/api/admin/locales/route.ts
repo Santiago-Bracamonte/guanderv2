@@ -167,6 +167,9 @@ export async function PUT(request: Request) {
     stars?: number;
     fk_category?: number;
     image_url?: string;
+    schedule_week?: string | null;
+    schedule_weekend?: string | null;
+    schedule_sunday?: string | null;
   };
   try {
     body = await request.json();
@@ -225,6 +228,26 @@ export async function PUT(request: Request) {
       ],
       { revalidate: false },
     );
+
+    // Update schedule if schedule fields were provided
+    if (body.schedule_week !== undefined || body.schedule_weekend !== undefined || body.schedule_sunday !== undefined) {
+      try {
+        const storeRows = await queryD1<{ fk_schedule: number }>(
+          'SELECT fk_schedule FROM stores WHERE id_store = ? LIMIT 1',
+          [body.id_store],
+          { revalidate: false },
+        );
+        const schedId = storeRows[0]?.fk_schedule;
+        if (schedId) {
+          await queryD1(
+            'UPDATE schedule SET week = COALESCE(?, week), weekend = COALESCE(?, weekend), sunday = COALESCE(?, sunday) WHERE id_schedule = ?',
+            [body.schedule_week ?? null, body.schedule_weekend ?? null, body.schedule_sunday ?? null, schedId],
+            { revalidate: false },
+          );
+        }
+      } catch { /* ignore schedule update failures */ }
+    }
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: true, simulated: true });
