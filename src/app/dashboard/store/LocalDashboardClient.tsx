@@ -16,6 +16,7 @@ import {
   Divider,
   Drawer,
   IconButton,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
@@ -42,6 +43,7 @@ import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsAct
 import MonetizationOnRoundedIcon from "@mui/icons-material/MonetizationOnRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import SearchIcon from "@mui/icons-material/Search";
 import { ThemeProvider, alpha, createTheme } from "@mui/material/styles";
 import type { DashboardData } from "./types";
 import {
@@ -231,10 +233,9 @@ function DashboardOverview({ data }: { data: DashboardData }) {
         </CardContent>
       </Card>
 
-      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(4, minmax(0, 1fr))" } }}>
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
         <PanelCard title="Servicios activos" value={String(data.servicesCount)} />
         <PanelCard title="Cupones activos" value={String(data.activeCouponsCount)} />
-        <PanelCard title="Ventas del mes" value={money(data.monthlySalesAmount)} subtitle={`${data.monthlySalesCount} compras`} />
         <PanelCard title="Reseñas" value={String(data.totalReviews)} subtitle={`Promedio ${avgStars} estrellas`} />
       </Box>
 
@@ -344,14 +345,14 @@ function ReviewsSection({ data }: { data: DashboardData }) {
   const [feedbackByComment, setFeedbackByComment] = useState<Record<number, { type: "error" | "success"; message: string }>>({});
 
   const reviewsTotalPages = useMemo(
-    () => Math.max(1, Math.ceil(data.reviews.length / PAGE_SIZE)),
-    [data.reviews.length],
+    () => Math.max(1, Math.ceil(filteredSortedReviews.length / PAGE_SIZE)),
+    [filteredSortedReviews.length],
   );
   const safeReviewsPage = Math.min(reviewsPage, reviewsTotalPages);
   const paginatedReviews = useMemo(() => {
     const start = (safeReviewsPage - 1) * PAGE_SIZE;
-    return data.reviews.slice(start, start + PAGE_SIZE);
-  }, [data.reviews, safeReviewsPage]);
+    return filteredSortedReviews.slice(start, start + PAGE_SIZE);
+  }, [filteredSortedReviews, safeReviewsPage]);
 
   useEffect(() => {
     if (reviewsPage > reviewsTotalPages) {
@@ -425,8 +426,49 @@ function ReviewsSection({ data }: { data: DashboardData }) {
         <Typography variant="h6" color="#173a2d">
           Reseñas de clientes
         </Typography>
-        <Stack spacing={1.2} sx={{ mt: 2 }}>
-          {data.reviews.length === 0 && <Typography variant="body2">Aun no hay reseñas registradas.</Typography>}
+
+        {/* Filters */}
+        <Stack spacing={1.5} sx={{ mt: 2, mb: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Buscar por nombre o comentario..."
+            value={reviewSearch}
+            onChange={(e) => { setReviewSearch(e.target.value); setReviewsPage(1); }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+            fullWidth
+          />
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {(["recientes", "mas_valorado", "menos_valorado"] as const).map((opt) => (
+              <Chip
+                key={opt}
+                label={opt === "recientes" ? "Más recientes" : opt === "mas_valorado" ? "Más valorado" : "Menos valorado"}
+                size="small"
+                onClick={() => { setReviewSort(opt); setReviewsPage(1); }}
+                variant={reviewSort === opt ? "filled" : "outlined"}
+                sx={{
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  ...(reviewSort === opt
+                    ? { bgcolor: "#1f4b3b", color: "#fff", borderColor: "#1f4b3b" }
+                    : { color: "#1f4b3b", borderColor: "rgba(31,75,59,0.4)" }),
+                }}
+              />
+            ))}
+          </Stack>
+        </Stack>
+
+        <Stack spacing={1.2}>
+          {filteredSortedReviews.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {reviewSearch.trim() ? "No se encontraron reseñas con ese criterio." : "Aun no hay reseñas registradas."}
+            </Typography>
+          )}
           {paginatedReviews.map((review) => (
             <Paper key={review.id_comment} variant="outlined" sx={{ borderColor: "#e0ece4", p: 1.5, borderRadius: 2, bgcolor: "#f8fcf9" }}>
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
@@ -494,7 +536,7 @@ function ReviewsSection({ data }: { data: DashboardData }) {
           ))}
         </Stack>
 
-        {data.reviews.length > PAGE_SIZE && (
+        {filteredSortedReviews.length > PAGE_SIZE && (
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 2 }}>
             <Typography variant="caption" sx={{ color: "#4b675b" }}>
               Pagina {safeReviewsPage} de {reviewsTotalPages} · {data.reviews.length} reseñas
