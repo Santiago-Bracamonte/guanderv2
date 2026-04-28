@@ -879,7 +879,7 @@ export function StoreCouponManagementSection() {
                         </TableCell>
                         <TableCell>{money(u.subtotal)}</TableCell>
                         <TableCell sx={{ color: "#155724" }}>−{money(u.discount_amount)}</TableCell>
-                        <TableCell fontWeight={600}>{money(u.final_amount)}</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>{money(u.final_amount)}</TableCell>
                         <TableCell>{when(u.used_at)}</TableCell>
                         <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>{u.consumption_code}</TableCell>
                       </TableRow>
