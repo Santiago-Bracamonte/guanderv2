@@ -17,6 +17,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  InputAdornment,
   InputLabel,
   MenuItem,
   Chip,
@@ -517,7 +518,7 @@ export function StoreCouponManagementSection() {
     if (!form.name.trim()) { setError("El nombre es obligatorio"); return; }
     if (!form.description.trim()) { setError("La descripcion es obligatoria"); return; }
     if (!form.expirationDate) { setError("La fecha de vencimiento es obligatoria"); return; }
-    if (!Number.isFinite(amount) || amount <= 0) { setError("El monto de descuento debe ser mayor a 0"); return; }
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 100) { setError("El descuento debe ser un porcentaje entre 1 y 100"); return; }
 
     setSaving(true);
     try {
@@ -630,11 +631,12 @@ export function StoreCouponManagementSection() {
               />
               <TextField
                 size="small"
-                label="Monto de descuento"
+                label="Descuento (%)"
                 type="number"
                 value={form.amount}
                 onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
-                inputProps={{ min: 1, step: 0.01 }}
+                inputProps={{ min: 1, max: 100, step: 1 }}
+                InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
               />
               <TextField
                 size="small"
@@ -715,7 +717,7 @@ export function StoreCouponManagementSection() {
                   {coupons.map((c) => (
                     <TableRow key={c.id_coupon}>
                       <TableCell>{c.name}</TableCell>
-                      <TableCell>{money(c.amount)}</TableCell>
+                      <TableCell>{c.amount}%</TableCell>
                       <TableCell>{c.expiration_date.slice(0, 10)}</TableCell>
                       <TableCell>
                         <Chip
@@ -804,7 +806,7 @@ export function StoreCouponManagementSection() {
                         <TableRow key={c.id_coupon}>
                           <TableCell>{c.name}</TableCell>
                           <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{c.code_coupon}</TableCell>
-                          <TableCell>{money(c.amount)}</TableCell>
+                          <TableCell>{c.amount}%</TableCell>
                           <TableCell>{c.expiration_date.slice(0, 10)}</TableCell>
                           <TableCell>
                             <Chip

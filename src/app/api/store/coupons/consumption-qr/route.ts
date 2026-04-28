@@ -172,7 +172,8 @@ export async function POST(request: NextRequest) {
     );
     if (couponRows[0]) {
       appliedCoupon = couponRows[0];
-      couponDiscount = Math.min(appliedCoupon.amount, subtotal);
+      // amount is stored as a percentage (1–100)
+      couponDiscount = Number((subtotal * appliedCoupon.amount / 100).toFixed(2));
     }
   }
 

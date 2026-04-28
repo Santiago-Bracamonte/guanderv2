@@ -33,8 +33,8 @@ function toNonNegativeInt(value: unknown): number | null {
 
 function toPositiveAmount(value: unknown): number | null {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return Number(parsed.toFixed(2));
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100) return null;
+  return Math.round(parsed);
 }
 
 function normalizeDate(value: unknown): string | null {
