@@ -190,6 +190,42 @@ export async function POST(request: NextRequest) {
   const pointsEarn = Math.floor(pointEligibleAfterDiscount / 1000);
   const consumptionCode = buildConsumptionCode();
 
+  // ── Persist coupon usage ──────────────────────────────────────────────────
+  if (appliedCoupon) {
+    await queryD1(
+      `CREATE TABLE IF NOT EXISTS coupon_usage_log (
+        id_usage         INTEGER PRIMARY KEY AUTOINCREMENT,
+        fk_coupon_id     INTEGER NOT NULL,
+        fk_store_id      INTEGER NOT NULL,
+        consumption_code TEXT    NOT NULL,
+        customer_email   TEXT,
+        customer_name    TEXT,
+        subtotal         REAL    NOT NULL,
+        discount_amount  REAL    NOT NULL,
+        final_amount     REAL    NOT NULL,
+        used_at          TEXT    NOT NULL DEFAULT (datetime('now'))
+      )`,
+      [],
+      { revalidate: false },
+    );
+    await queryD1(
+      `INSERT INTO coupon_usage_log
+         (fk_coupon_id, fk_store_id, consumption_code, customer_email, customer_name, subtotal, discount_amount, final_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        appliedCoupon.id_coupon,
+        context.storeId,
+        consumptionCode,
+        resolvedCustomerEmail || null,
+        resolvedCustomerName || null,
+        subtotal,
+        couponDiscount,
+        finalAmount,
+      ],
+      { revalidate: false },
+    );
+  }
+
   const qrPayload = {
     source: "guander-store-consumption",
     generatedAt: new Date().toISOString(),

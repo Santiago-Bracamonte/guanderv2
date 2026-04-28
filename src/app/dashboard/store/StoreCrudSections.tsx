@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Divider,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -23,11 +24,13 @@ import {
   Select,
   Stack,
   Switch,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -404,6 +407,32 @@ type ManagedCoupon = {
 
 type CouponStateOption = { id_coupon_state: number; name: string };
 
+type EmittedCoupon = {
+  id_coupon: number;
+  name: string;
+  description: string;
+  code_coupon: string;
+  amount: number;
+  expiration_date: string;
+  state: number;
+  point_req: number;
+  coupon_state_name: string;
+};
+
+type UsedCoupon = {
+  id_usage: number;
+  fk_coupon_id: number;
+  coupon_name: string;
+  code_coupon: string;
+  consumption_code: string;
+  customer_email: string | null;
+  customer_name: string | null;
+  subtotal: number;
+  discount_amount: number;
+  final_amount: number;
+  used_at: string;
+};
+
 const emptyCouponForm = () => ({
   name: "",
   description: "",
@@ -414,6 +443,9 @@ const emptyCouponForm = () => ({
 });
 
 export function StoreCouponManagementSection() {
+  const [activeTab, setActiveTab] = useState(0);
+
+  // ── Mis Cupones state ──
   const [coupons, setCoupons] = useState<ManagedCoupon[]>([]);
   const [couponStates, setCouponStates] = useState<CouponStateOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -422,6 +454,12 @@ export function StoreCouponManagementSection() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ManagedCoupon | null>(null);
   const [form, setForm] = useState(emptyCouponForm());
+
+  // ── Historial state ──
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [emitted, setEmitted] = useState<EmittedCoupon[]>([]);
+  const [used, setUsed] = useState<UsedCoupon[]>([]);
 
   async function loadCoupons() {
     setLoading(true);
@@ -446,6 +484,26 @@ export function StoreCouponManagementSection() {
   useEffect(() => {
     void loadCoupons();
   }, []);
+
+  async function loadHistory() {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const res = await fetch("/api/store/coupons/history", { cache: "no-store" });
+      const json = await readJson<{ emitted?: EmittedCoupon[]; used?: UsedCoupon[]; error?: string }>(res);
+      if (!res.ok) throw new Error(json.error ?? "Error al cargar historial");
+      setEmitted(json.emitted ?? []);
+      setUsed(json.used ?? []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : "Error al cargar historial");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 1) void loadHistory();
+  }, [activeTab]);
 
   function resetForm() {
     setForm(emptyCouponForm());
@@ -532,164 +590,306 @@ export function StoreCouponManagementSection() {
     <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
       <CardContent>
         <Typography variant="h6" color="#173a2d">
-          Mis Cupones
-        </Typography>
-        <Typography variant="body2" sx={{ mt: 0.5 }}>
-          Creá cupones de descuento para tus clientes. Los cupones activos aparecerán
-          disponibles al generar un consumo.
+          Cupones
         </Typography>
 
-        {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
-
-        {/* Form */}
-        <Box
-          sx={{
-            mt: 2,
-            display: "grid",
-            gap: 1.2,
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0,1fr))" },
-          }}
+        <Tabs
+          value={activeTab}
+          onChange={(_, v: number) => setActiveTab(v)}
+          sx={{ mt: 1, mb: 2, borderBottom: 1, borderColor: "divider" }}
         >
-          <TextField
-            size="small"
-            label="Nombre del cupón"
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            inputProps={{ maxLength: 120 }}
-          />
-          <TextField
-            size="small"
-            label="Monto de descuento"
-            type="number"
-            value={form.amount}
-            onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
-            inputProps={{ min: 1, step: 0.01 }}
-          />
-          <TextField
-            size="small"
-            label="Vencimiento"
-            type="date"
-            value={form.expirationDate}
-            onChange={(e) => setForm((p) => ({ ...p, expirationDate: e.target.value }))}
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            size="small"
-            label="Puntos requeridos (0 = sin requisito)"
-            type="number"
-            value={form.pointReq}
-            onChange={(e) => setForm((p) => ({ ...p, pointReq: e.target.value }))}
-            inputProps={{ min: 0, step: 1 }}
-          />
-          <TextField
-            size="small"
-            label="Descripción"
-            value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-            inputProps={{ maxLength: 350 }}
-            sx={{ gridColumn: { xs: "1", md: "1 / span 2" } }}
-          />
-        </Box>
+          <Tab label="Mis Cupones" />
+          <Tab label="Historial" />
+        </Tabs>
 
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.4 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.enabled}
-                onChange={(e) => setForm((p) => ({ ...p, enabled: e.target.checked }))}
+        {/* ── Tab 0: Mis Cupones ── */}
+        {activeTab === 0 && (
+          <>
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              Creá cupones de descuento para tus clientes. Los cupones activos aparecerán
+              disponibles al generar un consumo.
+            </Typography>
+
+            {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
+
+            {/* Form */}
+            <Box
+              sx={{
+                mt: 2,
+                display: "grid",
+                gap: 1.2,
+                gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0,1fr))" },
+              }}
+            >
+              <TextField
                 size="small"
-                sx={{ "& .MuiSwitch-thumb": { bgcolor: form.enabled ? "#1f4b3b" : undefined } }}
+                label="Nombre del cupón"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                inputProps={{ maxLength: 120 }}
               />
-            }
-            label={<Typography variant="body2">{form.enabled ? "Activo" : "Inactivo"}</Typography>}
-          />
-          <Button
-            variant="contained"
-            sx={{ bgcolor: "#1f4b3b", "&:hover": { bgcolor: "#173a2d" } }}
-            onClick={() => void handleSubmit()}
-            disabled={saving}
-          >
-            {saving ? "Guardando…" : editingId ? "Actualizar cupón" : "Crear cupón"}
-          </Button>
-          {editingId && (
-            <Button variant="outlined" onClick={resetForm}>
-              Cancelar
-            </Button>
-          )}
-        </Stack>
+              <TextField
+                size="small"
+                label="Monto de descuento"
+                type="number"
+                value={form.amount}
+                onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
+                inputProps={{ min: 1, step: 0.01 }}
+              />
+              <TextField
+                size="small"
+                label="Vencimiento"
+                type="date"
+                value={form.expirationDate}
+                onChange={(e) => setForm((p) => ({ ...p, expirationDate: e.target.value }))}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                size="small"
+                label="Puntos requeridos (0 = sin requisito)"
+                type="number"
+                value={form.pointReq}
+                onChange={(e) => setForm((p) => ({ ...p, pointReq: e.target.value }))}
+                inputProps={{ min: 0, step: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Descripción"
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                inputProps={{ maxLength: 350 }}
+                sx={{ gridColumn: { xs: "1", md: "1 / span 2" } }}
+              />
+            </Box>
 
-        {/* Table */}
-        {loading ? (
-          <Stack alignItems="center" sx={{ mt: 3 }}>
-            <CircularProgress size={24} sx={{ color: "#1f4b3b" }} />
-          </Stack>
-        ) : (
-          <Table size="small" sx={{ mt: 2 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nombre</TableCell>
-                <TableCell>Descuento</TableCell>
-                <TableCell>Vencimiento</TableCell>
-                <TableCell>Estado</TableCell>
-                <TableCell>Código</TableCell>
-                <TableCell align="center">Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {coupons.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6}>Aún no tenés cupones creados.</TableCell>
-                </TableRow>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.4 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.enabled}
+                    onChange={(e) => setForm((p) => ({ ...p, enabled: e.target.checked }))}
+                    size="small"
+                    sx={{ "& .MuiSwitch-thumb": { bgcolor: form.enabled ? "#1f4b3b" : undefined } }}
+                  />
+                }
+                label={<Typography variant="body2">{form.enabled ? "Activo" : "Inactivo"}</Typography>}
+              />
+              <Button
+                variant="contained"
+                sx={{ bgcolor: "#1f4b3b", "&:hover": { bgcolor: "#173a2d" } }}
+                onClick={() => void handleSubmit()}
+                disabled={saving}
+              >
+                {saving ? "Guardando…" : editingId ? "Actualizar cupón" : "Crear cupón"}
+              </Button>
+              {editingId && (
+                <Button variant="outlined" onClick={resetForm}>
+                  Cancelar
+                </Button>
               )}
-              {coupons.map((c) => (
-                <TableRow key={c.id_coupon}>
-                  <TableCell>{c.name}</TableCell>
-                  <TableCell>{money(c.amount)}</TableCell>
-                  <TableCell>{c.expiration_date.slice(0, 10)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={c.state === 1 ? "Activo" : "Inactivo"}
-                      size="small"
-                      sx={{
-                        bgcolor: c.state === 1 ? "#d4edda" : "#f8d7da",
-                        color: c.state === 1 ? "#155724" : "#721c24",
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
-                    {c.code_coupon}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack direction="row" spacing={0.8} justifyContent="center">
-                      <Button size="small" variant="outlined" onClick={() => startEdit(c)}>
-                        Editar
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="error"
-                        onClick={() => setPendingDelete(c)}
-                      >
-                        Eliminar
-                      </Button>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            </Stack>
+
+            {/* Table */}
+            {loading ? (
+              <Stack alignItems="center" sx={{ mt: 3 }}>
+                <CircularProgress size={24} sx={{ color: "#1f4b3b" }} />
+              </Stack>
+            ) : (
+              <Table size="small" sx={{ mt: 2 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Nombre</TableCell>
+                    <TableCell>Descuento</TableCell>
+                    <TableCell>Vencimiento</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell>Código</TableCell>
+                    <TableCell align="center">Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {coupons.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6}>Aún no tenés cupones creados.</TableCell>
+                    </TableRow>
+                  )}
+                  {coupons.map((c) => (
+                    <TableRow key={c.id_coupon}>
+                      <TableCell>{c.name}</TableCell>
+                      <TableCell>{money(c.amount)}</TableCell>
+                      <TableCell>{c.expiration_date.slice(0, 10)}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={c.state === 1 ? "Activo" : "Inactivo"}
+                          size="small"
+                          sx={{
+                            bgcolor: c.state === 1 ? "#d4edda" : "#f8d7da",
+                            color: c.state === 1 ? "#155724" : "#721c24",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
+                        {c.code_coupon}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={0.8} justifyContent="center">
+                          <Button size="small" variant="outlined" onClick={() => startEdit(c)}>
+                            Editar
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={() => setPendingDelete(c)}
+                          >
+                            Eliminar
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            <DeleteConfirmDialog
+              open={Boolean(pendingDelete)}
+              title="Eliminar cupón"
+              description={`Vas a eliminar el cupón "${pendingDelete?.name ?? ""}". Esta acción no se puede deshacer.`}
+              onCancel={() => setPendingDelete(null)}
+              onConfirm={() => {
+                if (pendingDelete) void handleDelete(pendingDelete.id_coupon);
+                setPendingDelete(null);
+              }}
+            />
+          </>
         )}
 
-        <DeleteConfirmDialog
-          open={Boolean(pendingDelete)}
-          title="Eliminar cupón"
-          description={`Vas a eliminar el cupón "${pendingDelete?.name ?? ""}". Esta acción no se puede deshacer.`}
-          onCancel={() => setPendingDelete(null)}
-          onConfirm={() => {
-            if (pendingDelete) void handleDelete(pendingDelete.id_coupon);
-            setPendingDelete(null);
-          }}
-        />
+        {/* ── Tab 1: Historial ── */}
+        {activeTab === 1 && (
+          <>
+            {historyLoading && (
+              <Stack alignItems="center" sx={{ mt: 4 }}>
+                <CircularProgress size={24} sx={{ color: "#1f4b3b" }} />
+              </Stack>
+            )}
+            {historyError && <Alert severity="error">{historyError}</Alert>}
+
+            {!historyLoading && !historyError && (
+              <>
+                {/* Emitidos */}
+                <Typography variant="subtitle1" fontWeight={600} color="#173a2d" sx={{ mb: 1 }}>
+                  Cupones emitidos
+                </Typography>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Nombre</TableCell>
+                      <TableCell>Código</TableCell>
+                      <TableCell>Descuento</TableCell>
+                      <TableCell>Vencimiento</TableCell>
+                      <TableCell>Estado</TableCell>
+                      <TableCell align="center">Usos</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {emitted.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6}>Aún no hay cupones emitidos.</TableCell>
+                      </TableRow>
+                    )}
+                    {emitted.map((c) => {
+                      const useCount = used.filter((u) => u.fk_coupon_id === c.id_coupon).length;
+                      const isExpired = new Date(c.expiration_date) < new Date();
+                      return (
+                        <TableRow key={c.id_coupon}>
+                          <TableCell>{c.name}</TableCell>
+                          <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{c.code_coupon}</TableCell>
+                          <TableCell>{money(c.amount)}</TableCell>
+                          <TableCell>{c.expiration_date.slice(0, 10)}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={isExpired ? "Vencido" : c.state === 1 ? "Activo" : "Inactivo"}
+                              size="small"
+                              sx={{
+                                bgcolor: isExpired ? "#fff3cd" : c.state === 1 ? "#d4edda" : "#f8d7da",
+                                color: isExpired ? "#856404" : c.state === 1 ? "#155724" : "#721c24",
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip label={useCount} size="small" variant="outlined" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                <Divider sx={{ my: 3 }} />
+
+                {/* Usados */}
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600} color="#173a2d">
+                    Cupones usados en consumos
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void loadHistory()}
+                    disabled={historyLoading}
+                  >
+                    Actualizar
+                  </Button>
+                </Stack>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Cupón</TableCell>
+                      <TableCell>Cliente</TableCell>
+                      <TableCell>Subtotal</TableCell>
+                      <TableCell>Descuento</TableCell>
+                      <TableCell>Total final</TableCell>
+                      <TableCell>Fecha</TableCell>
+                      <TableCell>Código consumo</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {used.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7}>
+                          Aún no se han aplicado cupones en consumos.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {used.map((u) => (
+                      <TableRow key={u.id_usage}>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2" fontWeight={500}>{u.coupon_name}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                              {u.code_coupon}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2">{u.customer_name ?? "—"}</Typography>
+                            <Typography variant="caption" color="text.secondary">{u.customer_email ?? ""}</Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{money(u.subtotal)}</TableCell>
+                        <TableCell sx={{ color: "#155724" }}>−{money(u.discount_amount)}</TableCell>
+                        <TableCell fontWeight={600}>{money(u.final_amount)}</TableCell>
+                        <TableCell>{when(u.used_at)}</TableCell>
+                        <TableCell sx={{ fontFamily: "monospace", fontSize: 11 }}>{u.consumption_code}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+          </>
+        )}
       </CardContent>
     </Card>
   );

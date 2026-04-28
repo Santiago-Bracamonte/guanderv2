@@ -53,7 +53,10 @@ import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
 import SearchIcon from "@mui/icons-material/Search";
 import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
+import MapRoundedIcon from "@mui/icons-material/MapRounded";
 import { ThemeProvider, alpha, createTheme } from "@mui/material/styles";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import type { DashboardData } from "./types";
 import {
   StoreCouponManagementSection,
@@ -1155,6 +1158,159 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
   );
 }
 
+// ─── Map location picker ─────────────────────────────────────────────────────
+
+const pickerMarkerIcon =
+  typeof window !== "undefined"
+    ? L.icon({ iconUrl: "/Marcador.png", iconSize: [52, 52], iconAnchor: [26, 32] })
+    : null;
+
+function parseLatLng(raw: string): { lat: number; lng: number } | null {
+  const parts = raw.split(",").map((v) => Number(v.trim()));
+  if (parts.length !== 2) return null;
+  const [lat, lng] = parts;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat === 0 && lng === 0) return null;
+  return { lat, lng };
+}
+
+function ProfileMapModal({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[1400] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="relative bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ProfileMapPicker({
+  open,
+  initialLocation,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  initialLocation: string;
+  onClose: () => void;
+  onConfirm: (payload: { location: string; address: string }) => void;
+}) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState("");
+  const [resolvingAddress, setResolvingAddress] = useState(false);
+
+  useEffect(() => {
+    if (!open || !mapContainerRef.current) return;
+    const initial = parseLatLng(initialLocation) ?? { lat: -34.603722, lng: -58.381592 };
+    setSelectedLocation(initial);
+    setSelectedAddress("");
+    let cancelled = false;
+
+    const reverseGeocode = async (lat: number, lng: number) => {
+      setResolvingAddress(true);
+      try {
+        const res = await fetch(`/api/admin/locales/reverse-geocode?lat=${lat}&lng=${lng}`);
+        if (!res.ok) { setSelectedAddress(""); return; }
+        const data = (await res.json()) as { address?: string };
+        if (!cancelled) setSelectedAddress(data.address ?? "");
+      } catch {
+        if (!cancelled) setSelectedAddress("");
+      } finally {
+        if (!cancelled) setResolvingAddress(false);
+      }
+    };
+
+    const icon = pickerMarkerIcon ?? L.icon({ iconUrl: "/Marcador.png", iconSize: [52, 52], iconAnchor: [26, 32] });
+    const map = L.map(mapContainerRef.current, { zoomControl: true, scrollWheelZoom: true });
+    mapRef.current = map;
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    map.setView([initial.lat, initial.lng], 15);
+    const marker = L.marker([initial.lat, initial.lng], { draggable: true, icon }).addTo(map);
+    markerRef.current = marker;
+    void reverseGeocode(initial.lat, initial.lng);
+
+    const updateLocation = (lat: number, lng: number) => {
+      marker.setLatLng([lat, lng]);
+      setSelectedLocation({ lat, lng });
+      void reverseGeocode(lat, lng);
+    };
+    map.on("click", (e: L.LeafletMouseEvent) => updateLocation(e.latlng.lat, e.latlng.lng));
+    marker.on("dragend", () => { const p = marker.getLatLng(); updateLocation(p.lat, p.lng); });
+    requestAnimationFrame(() => map.invalidateSize());
+    setTimeout(() => map.invalidateSize(), 120);
+
+    return () => {
+      cancelled = true;
+      markerRef.current = null;
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, [open, initialLocation]);
+
+  return (
+    <ProfileMapModal open={open} onClose={onClose}>
+      <div style={{ padding: "24px 24px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontWeight: 800, fontSize: 18, color: "#173a2d" }}>Elegir ubicación en mapa</span>
+        <button onClick={onClose} style={{ cursor: "pointer", background: "none", border: "none", fontSize: 20, color: "#555" }}>✕</button>
+      </div>
+      <div style={{ padding: "0 24px 16px" }}>
+        <p style={{ fontSize: 13, color: "#4b675b", marginBottom: 12 }}>
+          Hacé click en el punto exacto o arrastrá el pin para ajustar la ubicación.
+        </p>
+        <div ref={mapContainerRef} style={{ width: "100%", minHeight: 380, borderRadius: 12, overflow: "hidden", border: "1px solid #d6e4da" }} />
+        <div style={{ marginTop: 12, background: "#f5f8f0", borderRadius: 12, padding: 12, border: "1px solid #d6e4da" }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "#4b675b", marginBottom: 4 }}>Ubicación seleccionada</p>
+          <p style={{ fontSize: 13, color: "#173a2d" }}>
+            {selectedLocation ? `${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}` : "Seleccioná un punto en el mapa"}
+          </p>
+          <p style={{ fontSize: 12, marginTop: 6, color: "#4b675b" }}>
+            {resolvingAddress ? "Buscando dirección..." : selectedAddress || ""}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+          <button
+            onClick={onClose}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 12, border: "none", background: "#c5cdb3", color: "#3d4f35", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
+          >Cancelar</button>
+          <button
+            onClick={() => {
+              if (!selectedLocation) return;
+              onConfirm({
+                location: `${selectedLocation.lat.toFixed(6)},${selectedLocation.lng.toFixed(6)}`,
+                address: selectedAddress,
+              });
+            }}
+            disabled={!selectedLocation}
+            style={{ flex: 2, padding: "10px 0", borderRadius: 12, border: "none", background: selectedLocation ? "#1f4b3b" : "#aaa", color: "#fff", fontWeight: 700, cursor: selectedLocation ? "pointer" : "not-allowed", fontSize: 14 }}
+          >Confirmar ubicación</button>
+        </div>
+      </div>
+    </ProfileMapModal>
+  );
+}
+
 // ─── Store profile editor ─────────────────────────────────────────────────────
 
 type CategoryOption = { id_category: number; name: string };
@@ -1189,6 +1345,7 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -1442,16 +1599,45 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
                   }
                   inputProps={{ maxLength: 200 }}
                 />
-                <TextField
-                  label="Coordenadas GPS (lat,lng)"
-                  size="small"
-                  placeholder="Déjá vacío para geocodificar automáticamente"
-                  value={form.location ?? ""}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, location: e.target.value }))
-                  }
-                  helperText="Opcional · se geocodifica al guardar si está vacío"
-                />
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                  <TextField
+                    label="Coordenadas GPS (lat,lng)"
+                    size="small"
+                    placeholder="Déjá vacío para geocodificar automáticamente"
+                    value={form.location ?? ""}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, location: e.target.value }))
+                    }
+                    helperText="Opcional · se geocodifica al guardar si está vacío"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            title="Seleccionar en mapa"
+                            onClick={() => setMapOpen(true)}
+                            sx={{ color: "#1f4b3b" }}
+                          >
+                            <MapRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <ProfileMapPicker
+                    open={mapOpen}
+                    initialLocation={form.location ?? ""}
+                    onClose={() => setMapOpen(false)}
+                    onConfirm={({ location, address }) => {
+                      setForm((p) => ({
+                        ...p,
+                        location,
+                        address: address || p.address,
+                      }));
+                      setMapOpen(false);
+                    }}
+                  />
+                </Box>
                 <TextField
                   label="Descripción"
                   size="small"
