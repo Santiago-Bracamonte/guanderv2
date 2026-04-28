@@ -12,6 +12,7 @@ import {
   Settings,
   ClipboardList,
   MessageSquare,
+  CreditCard,
 } from "lucide-react";
 
 const navItems = [
@@ -55,6 +56,11 @@ const navItems = [
     label: "Mensajes",
     href: "/dashboard/admin/mensajes",
     icon: MessageSquare,
+  },
+  {
+    label: "Suscripciones",
+    href: "/dashboard/admin/suscripciones",
+    icon: CreditCard,
   },
 ];
 
