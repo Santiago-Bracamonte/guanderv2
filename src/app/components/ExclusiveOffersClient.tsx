@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -42,7 +42,6 @@ const PAGE_SIZE = 9;
 export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientProps) {
   const [activeFilter, setActiveFilter] = useState<OfferFilter>("Todas");
   const [page, setPage] = useState(1);
-  const sectionRef = useRef<HTMLDivElement>(null);
 
   const filteredOffers = useMemo(() => {
     if (activeFilter === "Todas") return offers;
@@ -67,7 +66,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
   }), [offers]);
 
   return (
-    <div ref={sectionRef}>
+    <>
       {/* Filter bar */}
       <Card
         variant="outlined"
@@ -262,6 +261,6 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
           </Typography>
         </Box>
       )}
-    </div>
+    </>
   );
 }
