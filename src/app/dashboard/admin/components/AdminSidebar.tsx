@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   Settings,
   ClipboardList,
+  MessageSquare,
 } from "lucide-react";
 
 const navItems = [
@@ -49,6 +50,11 @@ const navItems = [
     label: "Solicitudes de Alta",
     href: "/dashboard/admin/solicitudes",
     icon: ClipboardList,
+  },
+  {
+    label: "Mensajes",
+    href: "/dashboard/admin/mensajes",
+    icon: MessageSquare,
   },
 ];
 

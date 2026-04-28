@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -385,6 +386,315 @@ export function StoreServicesCrudSection({ initialItems }: { initialItems: Servi
   );
 }
 
+// ─── Coupon management (coupon_store) ────────────────────────────────────────
+
+type ManagedCoupon = {
+  id_coupon: number;
+  name: string;
+  description: string;
+  expiration_date: string;
+  point_req: number;
+  code_coupon: string;
+  amount: number;
+  fk_coupon_state: number;
+  state: number;
+  coupon_state_name: string | null;
+  redemptions: number;
+};
+
+type CouponStateOption = { id_coupon_state: number; name: string };
+
+const emptyCouponForm = () => ({
+  name: "",
+  description: "",
+  amount: "",
+  expirationDate: "",
+  pointReq: "0",
+  enabled: true,
+});
+
+export function StoreCouponManagementSection() {
+  const [coupons, setCoupons] = useState<ManagedCoupon[]>([]);
+  const [couponStates, setCouponStates] = useState<CouponStateOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ManagedCoupon | null>(null);
+  const [form, setForm] = useState(emptyCouponForm());
+
+  async function loadCoupons() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/store/coupons", { cache: "no-store" });
+      const json = await readJson<{
+        success?: boolean;
+        data?: { coupons: ManagedCoupon[]; couponStates: CouponStateOption[] };
+        error?: string;
+      }>(res);
+      if (!res.ok || !json.data) throw new Error(json.error ?? "Error al cargar cupones");
+      setCoupons(json.data.coupons);
+      setCouponStates(json.data.couponStates);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al cargar cupones");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadCoupons();
+  }, []);
+
+  function resetForm() {
+    setForm(emptyCouponForm());
+    setEditingId(null);
+    setError("");
+  }
+
+  async function handleSubmit() {
+    setError("");
+    const amount = Number(form.amount);
+    if (!form.name.trim()) { setError("El nombre es obligatorio"); return; }
+    if (!form.description.trim()) { setError("La descripcion es obligatoria"); return; }
+    if (!form.expirationDate) { setError("La fecha de vencimiento es obligatoria"); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { setError("El monto de descuento debe ser mayor a 0"); return; }
+
+    setSaving(true);
+    try {
+      if (editingId) {
+        const editing = coupons.find((c) => c.id_coupon === editingId);
+        const payload = {
+          idCoupon: editingId,
+          name: form.name.trim(),
+          description: form.description.trim(),
+          amount,
+          expirationDate: form.expirationDate,
+          pointReq: Number(form.pointReq) || 0,
+          enabled: form.enabled,
+          couponStateId: editing?.fk_coupon_state ?? couponStates[0]?.id_coupon_state,
+        };
+        const res = await fetch("/api/store/coupons", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await readJson<{ error?: string }>(res);
+        if (!res.ok) throw new Error(json.error ?? "No se pudo actualizar el cupon");
+      } else {
+        const payload = {
+          name: form.name.trim(),
+          description: form.description.trim(),
+          amount,
+          expirationDate: form.expirationDate,
+          pointReq: Number(form.pointReq) || 0,
+          enabled: form.enabled,
+        };
+        const res = await fetch("/api/store/coupons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await readJson<{ error?: string }>(res);
+        if (!res.ok) throw new Error(json.error ?? "No se pudo crear el cupon");
+      }
+      resetForm();
+      await loadCoupons();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al guardar el cupon");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(idCoupon: number) {
+    const res = await fetch(`/api/store/coupons?idCoupon=${idCoupon}`, { method: "DELETE" });
+    const json = await readJson<{ error?: string }>(res);
+    if (!res.ok) { setError(json.error ?? "No se pudo eliminar el cupon"); return; }
+    await loadCoupons();
+  }
+
+  function startEdit(c: ManagedCoupon) {
+    setEditingId(c.id_coupon);
+    setForm({
+      name: c.name,
+      description: c.description,
+      amount: String(c.amount),
+      expirationDate: c.expiration_date.slice(0, 10),
+      pointReq: String(c.point_req),
+      enabled: c.state === 1,
+    });
+    setError("");
+  }
+
+  return (
+    <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
+      <CardContent>
+        <Typography variant="h6" color="#173a2d">
+          Mis Cupones
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 0.5 }}>
+          Creá cupones de descuento para tus clientes. Los cupones activos aparecerán
+          disponibles al generar un consumo.
+        </Typography>
+
+        {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
+
+        {/* Form */}
+        <Box
+          sx={{
+            mt: 2,
+            display: "grid",
+            gap: 1.2,
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0,1fr))" },
+          }}
+        >
+          <TextField
+            size="small"
+            label="Nombre del cupón"
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            inputProps={{ maxLength: 120 }}
+          />
+          <TextField
+            size="small"
+            label="Monto de descuento"
+            type="number"
+            value={form.amount}
+            onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
+            inputProps={{ min: 1, step: 0.01 }}
+          />
+          <TextField
+            size="small"
+            label="Vencimiento"
+            type="date"
+            value={form.expirationDate}
+            onChange={(e) => setForm((p) => ({ ...p, expirationDate: e.target.value }))}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            size="small"
+            label="Puntos requeridos (0 = sin requisito)"
+            type="number"
+            value={form.pointReq}
+            onChange={(e) => setForm((p) => ({ ...p, pointReq: e.target.value }))}
+            inputProps={{ min: 0, step: 1 }}
+          />
+          <TextField
+            size="small"
+            label="Descripción"
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            inputProps={{ maxLength: 350 }}
+            sx={{ gridColumn: { xs: "1", md: "1 / span 2" } }}
+          />
+        </Box>
+
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.4 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={form.enabled}
+                onChange={(e) => setForm((p) => ({ ...p, enabled: e.target.checked }))}
+                size="small"
+                sx={{ "& .MuiSwitch-thumb": { bgcolor: form.enabled ? "#1f4b3b" : undefined } }}
+              />
+            }
+            label={<Typography variant="body2">{form.enabled ? "Activo" : "Inactivo"}</Typography>}
+          />
+          <Button
+            variant="contained"
+            sx={{ bgcolor: "#1f4b3b", "&:hover": { bgcolor: "#173a2d" } }}
+            onClick={() => void handleSubmit()}
+            disabled={saving}
+          >
+            {saving ? "Guardando…" : editingId ? "Actualizar cupón" : "Crear cupón"}
+          </Button>
+          {editingId && (
+            <Button variant="outlined" onClick={resetForm}>
+              Cancelar
+            </Button>
+          )}
+        </Stack>
+
+        {/* Table */}
+        {loading ? (
+          <Stack alignItems="center" sx={{ mt: 3 }}>
+            <CircularProgress size={24} sx={{ color: "#1f4b3b" }} />
+          </Stack>
+        ) : (
+          <Table size="small" sx={{ mt: 2 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Nombre</TableCell>
+                <TableCell>Descuento</TableCell>
+                <TableCell>Vencimiento</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell>Código</TableCell>
+                <TableCell align="center">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {coupons.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6}>Aún no tenés cupones creados.</TableCell>
+                </TableRow>
+              )}
+              {coupons.map((c) => (
+                <TableRow key={c.id_coupon}>
+                  <TableCell>{c.name}</TableCell>
+                  <TableCell>{money(c.amount)}</TableCell>
+                  <TableCell>{c.expiration_date.slice(0, 10)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={c.state === 1 ? "Activo" : "Inactivo"}
+                      size="small"
+                      sx={{
+                        bgcolor: c.state === 1 ? "#d4edda" : "#f8d7da",
+                        color: c.state === 1 ? "#155724" : "#721c24",
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
+                    {c.code_coupon}
+                  </TableCell>
+                  <TableCell align="center">
+                    <Stack direction="row" spacing={0.8} justifyContent="center">
+                      <Button size="small" variant="outlined" onClick={() => startEdit(c)}>
+                        Editar
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        onClick={() => setPendingDelete(c)}
+                      >
+                        Eliminar
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <DeleteConfirmDialog
+          open={Boolean(pendingDelete)}
+          title="Eliminar cupón"
+          description={`Vas a eliminar el cupón "${pendingDelete?.name ?? ""}". Esta acción no se puede deshacer.`}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            if (pendingDelete) void handleDelete(pendingDelete.id_coupon);
+            setPendingDelete(null);
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function StorePromotionsCrudSection({ initialItems }: { initialItems: BenefitRow[] }) {
   const [promotions, setPromotions] = useState(initialItems);
   const [loading, setLoading] = useState(false);
@@ -581,6 +891,7 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
   const [consumptionItems, setConsumptionItems] = useState<ConsumptionFormItem[]>([]);
   const [customerSummary, setCustomerSummary] = useState<{ name: string; email: string } | null>(null);
   const [selectedCoupon, setSelectedCoupon] = useState<CouponRow | null>(null);
+  const [liveCoupons, setLiveCoupons] = useState<CouponRow[]>(activeCoupons);
 
   async function loadServiceOptions() {
     setConsumptionError("");
@@ -605,8 +916,29 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
     setServiceOptions(deduped);
   }
 
+  async function loadLiveCoupons() {
+    try {
+      const res = await fetch("/api/store/coupons", { cache: "no-store" });
+      const json = await readJson<{
+        success?: boolean;
+        data?: { coupons: CouponRow[] };
+        error?: string;
+      }>(res);
+      if (res.ok && json.data) {
+        setLiveCoupons(
+          json.data.coupons.filter(
+            (c) => c.state === 1 && new Date(c.expiration_date) >= new Date(),
+          ),
+        );
+      }
+    } catch {
+      // silently keep server-provided fallback
+    }
+  }
+
   useEffect(() => {
     void loadServiceOptions();
+    void loadLiveCoupons();
   }, []);
 
   const selectedService = useMemo(() => {
@@ -792,16 +1124,16 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
             </Alert>
           )}
 
-          {activeCoupons.length > 0 && (
+          {liveCoupons.length > 0 && (
             <Paper variant="outlined" sx={{ mt: 2, p: 1.5, borderColor: "#d6e4da", bgcolor: "#f8fcf9" }}>
               <Typography variant="caption" sx={{ color: "#173a2d", fontWeight: 700, display: "block", mb: 0.6 }}>
                 Cupones de descuento del local — hacé clic para aplicar al consumo:
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {activeCoupons.filter((c) => c.state === 1).length === 0 ? (
+                {liveCoupons.length === 0 ? (
                   <Typography variant="caption" sx={{ color: "#5a7368" }}>Sin cupones activos</Typography>
                 ) : (
-                  activeCoupons.filter((c) => c.state === 1).map((coupon) => {
+                  liveCoupons.map((coupon) => {
                     const isSelected = selectedCoupon?.id_coupon === coupon.id_coupon;
                     return (
                       <Chip

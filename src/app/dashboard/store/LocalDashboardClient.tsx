@@ -49,12 +49,14 @@ import MonetizationOnRoundedIcon from "@mui/icons-material/MonetizationOnRounded
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
 import SearchIcon from "@mui/icons-material/Search";
 import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import { ThemeProvider, alpha, createTheme } from "@mui/material/styles";
 import type { DashboardData } from "./types";
 import {
+  StoreCouponManagementSection,
   StoreCouponsCrudSection,
   StorePromotionsCrudSection,
   StoreServicesCrudSection,
@@ -68,7 +70,8 @@ type DashboardSection =
   | "cupones"
   | "reseñas"
   | "notificaciones"
-  | "perfil";
+  | "perfil"
+  | "soporte";
 
 const drawerWidth = 284;
 
@@ -102,6 +105,7 @@ const navItems: Array<{ id: DashboardSection; label: string; icon: React.ReactNo
   { id: "reseñas", label: "Reseñas", icon: <ReviewsRoundedIcon /> },
   { id: "notificaciones", label: "Notificaciones", icon: <NotificationsActiveRoundedIcon /> },
   { id: "perfil", label: "Mi Perfil", icon: <StorefrontRoundedIcon /> },
+  { id: "soporte", label: "Soporte / Mensajes", icon: <SupportAgentRoundedIcon /> },
 ];
 
 function money(value: number): string {
@@ -331,8 +335,8 @@ function ServicesSection({ data }: { data: DashboardData }) {
   return <StoreServicesCrudSection initialItems={data.services} />;
 }
 
-function PromotionsSection({ data }: { data: DashboardData }) {
-  return <StorePromotionsCrudSection initialItems={data.benefits} />;
+function PromotionsSection() {
+  return <StoreCouponManagementSection />;
 }
 
 function CouponsSection({ data }: { data: DashboardData }) {
@@ -1537,6 +1541,402 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
   );
 }
 
+// ─── Support / Messaging section ─────────────────────────────────────────────
+
+type SupportMessage = {
+  id_message: number;
+  fk_ticket?: number;
+  sender_role: string;
+  sender_name: string;
+  body: string;
+  created_at: string;
+};
+
+type SupportTicket = {
+  id_ticket: number;
+  subject: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  messages: SupportMessage[];
+};
+
+function StoreSupportSection() {
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(true);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newSubject, setNewSubject] = useState("");
+  const [newMessage, setNewMessage] = useState("");
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedTicket = tickets.find((t) => t.id_ticket === selectedId) ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoadingTickets(true);
+      try {
+        const res = await fetch("/api/messages/conversations", { cache: "no-store" });
+        const json = (await res.json().catch(() => ({}))) as { tickets?: SupportTicket[] };
+        if (!cancelled) setTickets(json.tickets ?? []);
+      } catch {
+        // ignore network errors silently
+      } finally {
+        if (!cancelled) setLoadingTickets(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleCreate() {
+    if (!newSubject.trim() || !newMessage.trim()) {
+      setError("Completá el asunto y el mensaje.");
+      return;
+    }
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: newSubject, message: newMessage }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ticketId?: number; error?: string };
+      if (!res.ok) {
+        setError(json.error ?? "Error al enviar");
+        return;
+      }
+      const now = new Date().toISOString();
+      const newTicket: SupportTicket = {
+        id_ticket: json.ticketId!,
+        subject: newSubject,
+        status: "open",
+        created_at: now,
+        updated_at: now,
+        messages: [
+          { id_message: Date.now(), sender_role: "user", sender_name: "Vos", body: newMessage, created_at: now },
+        ],
+      };
+      setTickets((prev) => [newTicket, ...prev]);
+      setSelectedId(json.ticketId!);
+      setNewSubject("");
+      setNewMessage("");
+      setShowNewForm(false);
+    } catch {
+      setError("Error de red");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleReply() {
+    if (!selectedId || !replyText.trim()) return;
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId: selectedId, message: replyText }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ticketId?: number; error?: string };
+      if (!res.ok) {
+        setError(json.error ?? "Error al enviar");
+        return;
+      }
+      const now = new Date().toISOString();
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id_ticket === selectedId
+            ? {
+                ...t,
+                status: "open",
+                updated_at: now,
+                messages: [
+                  ...t.messages,
+                  { id_message: Date.now(), sender_role: "user", sender_name: "Vos", body: replyText, created_at: now },
+                ],
+              }
+            : t,
+        ),
+      );
+      setReplyText("");
+    } catch {
+      setError("Error de red");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function statusChip(status: string) {
+    const map: Record<string, { label: string; color: string; bg: string }> = {
+      open: { label: "Abierto", color: "#92400e", bg: "#fef3c7" },
+      answered: { label: "Respondido", color: "#1e40af", bg: "#dbeafe" },
+      closed: { label: "Cerrado", color: "#374151", bg: "#f3f4f6" },
+    };
+    const s = map[status] ?? { label: status, color: "#374151", bg: "#f3f4f6" };
+    return (
+      <Chip
+        label={s.label}
+        size="small"
+        sx={{ bgcolor: s.bg, color: s.color, fontWeight: 700, fontSize: "0.7rem", height: 20 }}
+      />
+    );
+  }
+
+  function timeAgoSupport(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "ahora";
+    if (mins < 60) return `Hace ${mins} min`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `Hace ${hrs}h`;
+    return `Hace ${Math.floor(hrs / 24)}d`;
+  }
+
+  return (
+    <Stack spacing={2}>
+      <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
+        <CardContent>
+          <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" spacing={1} sx={{ mb: 1.5 }}>
+            <Box>
+              <Typography variant="h6" color="#173a2d">
+                Mensajes con el equipo de Guander
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.3 }}>
+                Consultá dudas, reportá problemas o pedí asistencia. El equipo responde a la brevedad.
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => { setShowNewForm(true); setSelectedId(null); }}
+              sx={{ bgcolor: "#1f4b3b", "&:hover": { bgcolor: "#173a2d" }, flexShrink: 0 }}
+            >
+              + Nueva consulta
+            </Button>
+          </Stack>
+
+          {error && <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>}
+
+          {showNewForm && (
+            <Paper variant="outlined" sx={{ p: 2, borderColor: "#d6e4da", bgcolor: "#f8fcf9", mb: 2, borderRadius: 2 }}>
+              <Typography variant="subtitle2" color="#173a2d" sx={{ mb: 1.5, fontWeight: 700 }}>
+                Nueva consulta
+              </Typography>
+              <Stack spacing={1.5}>
+                <TextField
+                  label="Asunto"
+                  size="small"
+                  value={newSubject}
+                  onChange={(e) => setNewSubject(e.target.value)}
+                  inputProps={{ maxLength: 200 }}
+                  placeholder="Ej: Problema con mi suscripción..."
+                />
+                <TextField
+                  label="Mensaje"
+                  size="small"
+                  multiline
+                  minRows={3}
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  inputProps={{ maxLength: 2000 }}
+                  placeholder="Describí tu consulta con el mayor detalle posible..."
+                />
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setShowNewForm(false)}
+                    disabled={sending}
+                    sx={{ color: "#5a7368", borderColor: "#d6e4da" }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => void handleCreate()}
+                    disabled={sending}
+                    startIcon={sending ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
+                    sx={{ bgcolor: "#1f4b3b" }}
+                  >
+                    {sending ? "Enviando..." : "Enviar consulta"}
+                  </Button>
+                </Stack>
+              </Stack>
+            </Paper>
+          )}
+
+          {loadingTickets ? (
+            <Stack alignItems="center" sx={{ py: 4 }}>
+              <CircularProgress size={28} sx={{ color: "#1f4b3b" }} />
+            </Stack>
+          ) : tickets.length === 0 ? (
+            <Typography variant="body2" sx={{ py: 3, textAlign: "center", color: "#5a7368" }}>
+              Aún no hay conversaciones. Iniciá una nueva consulta arriba.
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {tickets.map((ticket) => {
+                const lastMsg = ticket.messages[ticket.messages.length - 1];
+                const isSelected = ticket.id_ticket === selectedId;
+                return (
+                  <Paper
+                    key={ticket.id_ticket}
+                    variant="outlined"
+                    onClick={() => setSelectedId(isSelected ? null : ticket.id_ticket)}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      cursor: "pointer",
+                      borderColor: isSelected ? "#1f4b3b" : "#e0ece4",
+                      bgcolor: isSelected ? "#f0f7f3" : "#f8fcf9",
+                      "&:hover": { borderColor: "#1f4b3b", bgcolor: "#f0f7f3" },
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.4 }}>
+                          <Typography variant="body2" fontWeight={700} color="#173a2d">
+                            {ticket.subject}
+                          </Typography>
+                          {statusChip(ticket.status)}
+                        </Stack>
+                        {lastMsg && (
+                          <Typography variant="caption" sx={{ color: "#5a7368", display: "block" }}>
+                            {lastMsg.sender_role === "admin" ? "✓ Soporte: " : "Vos: "}
+                            {lastMsg.body.length > 80 ? `${lastMsg.body.slice(0, 80)}…` : lastMsg.body}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Typography variant="caption" sx={{ color: "#8caa9c", ml: 1, flexShrink: 0 }}>
+                        {timeAgoSupport(ticket.updated_at)}
+                      </Typography>
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedTicket && (
+        <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
+          <CardContent>
+            <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+              <Avatar sx={{ bgcolor: "#1f4b3b", color: "#fff", width: 34, height: 34, fontWeight: 700, fontSize: 16 }}>
+                G
+              </Avatar>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" fontWeight={700} color="#173a2d">
+                  {selectedTicket.subject}
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {statusChip(selectedTicket.status)}
+                  <Typography variant="caption" sx={{ color: "#5a7368" }}>
+                    {timeAgoSupport(selectedTicket.created_at)}
+                  </Typography>
+                </Stack>
+              </Box>
+            </Stack>
+
+            <Stack spacing={1.2} sx={{ mb: 2 }}>
+              {selectedTicket.messages.map((msg) => (
+                <Box
+                  key={msg.id_message}
+                  sx={{ display: "flex", justifyContent: msg.sender_role === "admin" ? "flex-end" : "flex-start" }}
+                >
+                  <Paper
+                    sx={{
+                      maxWidth: "75%",
+                      p: 1.5,
+                      borderRadius: 2.5,
+                      ...(msg.sender_role === "admin"
+                        ? { bgcolor: "#1f4b3b", color: "#fff" }
+                        : { bgcolor: "#f3f9f5", border: "1px solid #dce9e0" }),
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        mb: 0.4,
+                        fontWeight: 700,
+                        color: msg.sender_role === "admin" ? "rgba(255,255,255,0.65)" : "#5a7368",
+                      }}
+                    >
+                      {msg.sender_role === "admin" ? "Soporte Guander" : "Vos"}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        whiteSpace: "pre-wrap",
+                        color: msg.sender_role === "admin" ? "#fff" : "#173a2d",
+                      }}
+                    >
+                      {msg.body}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        mt: 0.6,
+                        color: msg.sender_role === "admin" ? "rgba(255,255,255,0.5)" : "#8caa9c",
+                      }}
+                    >
+                      {timeAgoSupport(msg.created_at)}
+                    </Typography>
+                  </Paper>
+                </Box>
+              ))}
+            </Stack>
+
+            {selectedTicket.status !== "closed" ? (
+              <Box>
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
+                  minRows={2}
+                  label="Responder..."
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  inputProps={{ maxLength: 2000 }}
+                />
+                <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => void handleReply()}
+                    disabled={sending || !replyText.trim()}
+                    startIcon={sending ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : undefined}
+                    sx={{ bgcolor: "#1f4b3b" }}
+                  >
+                    {sending ? "Enviando..." : "Enviar"}
+                  </Button>
+                </Stack>
+              </Box>
+            ) : (
+              <Typography variant="body2" sx={{ textAlign: "center", color: "#5a7368" }}>
+                Este ticket fue cerrado por el equipo de soporte.
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </Stack>
+  );
+}
+
 function sectionTitle(section: DashboardSection): string {
   switch (section) {
     case "dashboard":
@@ -1555,6 +1955,8 @@ function sectionTitle(section: DashboardSection): string {
       return "Notificaciones";
     case "perfil":
       return "Mi Perfil";
+    case "soporte":
+      return "Soporte / Mensajes";
     default:
       return "Dashboard";
   }
@@ -1569,7 +1971,7 @@ function renderSection(section: DashboardSection, data: DashboardData, userRole?
     case "servicios":
       return <ServicesSection data={data} />;
     case "promociones":
-      return <PromotionsSection data={data} />;
+      return <PromotionsSection />;
     case "cupones":
       return <CouponsSection data={data} />;
     case "reseñas":
@@ -1578,6 +1980,8 @@ function renderSection(section: DashboardSection, data: DashboardData, userRole?
       return <NotificationsSection data={data} />;
     case "perfil":
       return <StoreProfileSection data={data} />;
+    case "soporte":
+      return <StoreSupportSection />;
     default:
       return <DashboardOverview data={data} />;
   }
