@@ -1,11 +1,13 @@
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
-const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+const API_KEY = process.env.CLOUDINARY_API_KEY;
+const API_SECRET = process.env.CLOUDINARY_API_SECRET;
 
 export async function POST(req: NextRequest) {
-  if (!ACCOUNT_ID || !API_TOKEN) {
-    return NextResponse.json({ error: 'Cloudflare credentials not configured' }, { status: 500 });
+  if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
+    return NextResponse.json({ error: 'Cloudinary credentials not configured' }, { status: 500 });
   }
 
   let file: File | null = null;
@@ -29,29 +31,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'La imagen no puede superar 10MB' }, { status: 400 });
   }
 
+  // Build signed upload params
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = 'guander/locales';
+  const paramsToSign = `folder=${folder}&timestamp=${timestamp}`;
+  const signature = createHash('sha256')
+    .update(paramsToSign + API_SECRET)
+    .digest('hex');
+
   const cfForm = new FormData();
   cfForm.append('file', file);
+  cfForm.append('api_key', API_KEY);
+  cfForm.append('timestamp', String(timestamp));
+  cfForm.append('signature', signature);
+  cfForm.append('folder', folder);
 
   const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/images/v1`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${API_TOKEN}` },
-      body: cfForm,
-    },
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+    { method: 'POST', body: cfForm },
   );
 
   const data = await res.json() as {
-    success: boolean;
-    result?: { id: string; variants: string[] };
-    errors?: { message: string }[];
+    secure_url?: string;
+    public_id?: string;
+    error?: { message: string };
   };
 
-  if (!data.success || !data.result) {
-    const msg = data.errors?.[0]?.message ?? 'Upload failed';
+  if (!res.ok || !data.secure_url) {
+    const msg = data.error?.message ?? 'Upload failed';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  const url = data.result.variants.find((v) => v.endsWith('/public')) ?? data.result.variants[0];
-  return NextResponse.json({ url, id: data.result.id });
+  return NextResponse.json({ url: data.secure_url, id: data.public_id });
 }
