@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -42,6 +42,7 @@ const PAGE_SIZE = 9;
 export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientProps) {
   const [activeFilter, setActiveFilter] = useState<OfferFilter>("Todas");
   const [page, setPage] = useState(1);
+  const sectionRef = useRef<HTMLDivElement>(null);
 
   const filteredOffers = useMemo(() => {
     if (activeFilter === "Todas") return offers;
@@ -66,7 +67,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
   }), [offers]);
 
   return (
-    <>
+    <div ref={sectionRef}>
       {/* Filter bar */}
       <Card
         variant="outlined"
@@ -239,7 +240,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
               <Pagination
                 count={totalPages}
                 page={page}
-                onChange={(_, v) => { setPage(v); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                onChange={(_, v) => { setPage(v); sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                 color="primary"
                 shape="rounded"
                 showFirstButton
@@ -249,9 +250,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
           )}
         </>
       ) : (
-        <Box
-          sx={{
-            p: 5,
+        <Box sx={{ p: 5,
             textAlign: 'center',
             border: '2px dashed',
             borderColor: 'rgba(79,129,103,0.26)',
@@ -263,6 +262,6 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
           </Typography>
         </Box>
       )}
-    </>
+    </div>
   );
 }

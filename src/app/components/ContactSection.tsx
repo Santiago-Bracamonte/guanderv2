@@ -124,7 +124,7 @@ export default function ContactSection() {
 
             <Stack spacing={2.5}>
               {[
-                { label: 'Email', value: 'tomas.gonzalezz@davinci.edu.ar' },
+                { label: 'Email', value: 'guander-help@gmail.com' },
                 { label: 'Atención', value: 'Lunes a viernes de 9 a 18h' },
               ].map(({ label, value }) => (
                 <Box key={label} sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>

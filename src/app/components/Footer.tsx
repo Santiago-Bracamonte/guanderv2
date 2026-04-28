@@ -3,6 +3,7 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import MuiLink from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
+import Image from 'next/image';
 
 const legalLinks = [
   { label: "Términos y condiciones", href: "/terminos" },
@@ -51,7 +52,7 @@ export default function Footer() {
           {/* Brand */}
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Typography sx={{ color: '#b9e7d0', fontSize: '1.25rem', fontWeight: 900 }}>✶</Typography>
+              <Image src="/LogoGuander.png" alt="Guander" width={32} height={32} style={{ objectFit: 'contain' }} />
               <Typography variant="h6" sx={{ color: 'white', fontWeight: 800 }}>Guander</Typography>
             </Box>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)', lineHeight: 1.8 }}>
