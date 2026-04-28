@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -110,7 +111,7 @@ export default function Register() {
       <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-b from-emerald-900 to-emerald-950 text-white flex-col justify-between p-12 shrink-0">
         <div>
           <Link href="/" className="flex items-center gap-2 mb-10">
-            <span className="text-3xl font-black text-emerald-400">✶</span>
+            <Image src="/LogoGuander.png" alt="Guander" width={36} height={36} className="object-contain" />
             <span className="text-2xl font-black tracking-tight">Guander</span>
           </Link>
           <h1 className="text-4xl font-bold mb-4 leading-tight">
@@ -140,7 +141,7 @@ export default function Register() {
       <div className="flex flex-1 flex-col justify-center items-center px-6 py-12 min-w-0">
         {/* Logo mobile */}
         <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
-          <span className="text-2xl font-black text-emerald-600">✶</span>
+          <Image src="/LogoGuander.png" alt="Guander" width={28} height={28} className="object-contain" />
           <span className="text-xl font-black tracking-tight text-gray-900">Guander</span>
         </Link>
 

@@ -1,7 +1,23 @@
 "use client";
 
 import { useMemo, useState, useRef, useCallback } from "react";
-import { Shield, X, AlertTriangle, ChevronRight, CheckCircle, XCircle } from "lucide-react";
+import { Shield, X, ChevronRight, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react";
+
+interface BenefitItem { benefit: string; detail?: string; }
+
+function parseBenefits(raw: string): BenefitItem[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as BenefitItem[];
+  } catch { /* fall through */ }
+  // fallback: plain text lines
+  return raw.split(/\n/).map((b) => ({ benefit: b.trim() })).filter((b) => b.benefit);
+}
+
+function serializeBenefits(items: BenefitItem[]): string {
+  return JSON.stringify(items);
+}
 
 export interface SubscriptionItem {
   id_subscription: number;
@@ -82,6 +98,9 @@ export default function PlanesClient({
   const [formDescription, setFormDescription] = useState("");
   const [formState, setFormState] = useState<"activo" | "inactivo">("activo");
   const [formAmount, setFormAmount] = useState("");
+  const [formBenefits, setFormBenefits] = useState<BenefitItem[]>([]);
+  const [newBenefit, setNewBenefit] = useState("");
+  const [newDetail, setNewDetail] = useState("");
 
   const sortedPlans = useMemo(
     () => [...plans].sort((a, b) => a.amount - b.amount),
@@ -93,6 +112,9 @@ export default function PlanesClient({
     setFormDescription("");
     setFormState("activo");
     setFormAmount("");
+    setFormBenefits([]);
+    setNewBenefit("");
+    setNewDetail("");
   };
 
   const openEdit = (plan: SubscriptionItem) => {
@@ -100,6 +122,9 @@ export default function PlanesClient({
     setFormDescription(plan.description);
     setFormState(plan.state === "inactivo" ? "inactivo" : "activo");
     setFormAmount(String(plan.amount));
+    setFormBenefits(parseBenefits(plan.plan_benefits));
+    setNewBenefit("");
+    setNewDetail("");
     setEditingPlan(plan);
   };
 
@@ -123,6 +148,7 @@ export default function PlanesClient({
           description: formDescription.trim(),
           state: formState,
           amount,
+          plan_benefits: serializeBenefits(formBenefits),
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -139,8 +165,7 @@ export default function PlanesClient({
                 name: formName.trim(),
                 description: formDescription.trim(),
                 state: formState,
-                amount,
-              }
+                amount,                plan_benefits: serializeBenefits(formBenefits),              }
             : item,
         ),
       );
@@ -152,6 +177,17 @@ export default function PlanesClient({
       setSaving(false);
     }
   };
+
+  const addBenefit = () => {
+    const b = newBenefit.trim();
+    if (!b) return;
+    setFormBenefits((prev) => [...prev, { benefit: b, detail: newDetail.trim() || undefined }]);
+    setNewBenefit("");
+    setNewDetail("");
+  };
+
+  const removeBenefit = (idx: number) =>
+    setFormBenefits((prev) => prev.filter((_, i) => i !== idx));
 
   const renderForm = () => (
     <div className="space-y-4 p-6 pt-0">
@@ -240,6 +276,62 @@ export default function PlanesClient({
           />
         </div>
       </div>
+
+      {/* Benefits builder */}
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: "var(--guander-ink)" }}>
+          Beneficios del plan
+        </label>
+
+        {/* Existing benefits */}
+        {formBenefits.length > 0 && (
+          <ul className="mb-3 space-y-1.5">
+            {formBenefits.map((b, i) => (
+              <li key={i} className="flex items-start gap-2 px-3 py-2 rounded-xl text-sm" style={{ backgroundColor: "var(--guander-mint)" }}>
+                <span style={{ color: "var(--guander-forest)" }} className="mt-0.5 shrink-0">✓</span>
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium" style={{ color: "var(--guander-ink)" }}>{b.benefit}</span>
+                  {b.detail && <span className="ml-1 text-xs" style={{ color: "var(--guander-muted)" }}>— {b.detail}</span>}
+                </div>
+                <button type="button" onClick={() => removeBenefit(i)} className="shrink-0 hover:opacity-70 transition cursor-pointer">
+                  <Trash2 size={14} color="#c0392b" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Add new benefit */}
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={newBenefit}
+            onChange={(e) => setNewBenefit(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())}
+            placeholder="Ej. Perfil destacado"
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ border: "1px solid var(--guander-border)", color: "var(--guander-ink)" }}
+          />
+          <input
+            type="text"
+            value={newDetail}
+            onChange={(e) => setNewDetail(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())}
+            placeholder="Detalle opcional (ej. hasta 5 fotos)"
+            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+            style={{ border: "1px solid var(--guander-border)", color: "var(--guander-ink)" }}
+          />
+          <button
+            type="button"
+            onClick={addBenefit}
+            disabled={!newBenefit.trim()}
+            className="w-full py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition hover:opacity-90 cursor-pointer disabled:opacity-40"
+            style={{ backgroundColor: "var(--guander-mint)", color: "var(--guander-forest)" }}
+          >
+            <Plus size={14} /> Agregar beneficio
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -293,12 +385,15 @@ export default function PlanesClient({
                   {plan.description}
                 </p>
               )}
-              {plan.plan_benefits && (
-                <ul className="text-xs mb-4 space-y-1" style={{ color: "var(--guander-ink)" }}>
-                  {plan.plan_benefits.split(/[,\n]/).map((b, i) => b.trim() && (
+              {plan.plan_benefits && parseBenefits(plan.plan_benefits).length > 0 && (
+                <ul className="text-xs mb-4 space-y-1.5" style={{ color: "var(--guander-ink)" }}>
+                  {parseBenefits(plan.plan_benefits).map((b, i) => (
                     <li key={i} className="flex items-start gap-1.5">
-                      <span style={{ color: "var(--guander-forest)" }}>✓</span>
-                      <span>{b.trim()}</span>
+                      <span style={{ color: "var(--guander-forest)" }} className="shrink-0 mt-0.5">✓</span>
+                      <span>
+                        <span className="font-medium">{b.benefit}</span>
+                        {b.detail && <span className="ml-1" style={{ color: "var(--guander-muted)" }}>— {b.detail}</span>}
+                      </span>
                     </li>
                   ))}
                 </ul>

@@ -1340,7 +1340,7 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
                     return (
                       <Chip
                         key={coupon.id_coupon}
-                        label={`${coupon.name}  −${money(coupon.amount)}`}
+                        label={`${coupon.name}  −${coupon.amount}%`}
                         size="small"
                         onClick={() => setSelectedCoupon(isSelected ? null : coupon)}
                         variant={isSelected ? "filled" : "outlined"}
