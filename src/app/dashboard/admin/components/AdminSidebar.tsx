@@ -8,7 +8,7 @@ import {
   Building2,
   Briefcase,
   Shield,
-  ShoppingBag,
+  Tag,
   Settings,
   ClipboardList,
   MessageSquare,
@@ -38,9 +38,9 @@ const navItems = [
     icon: Shield,
   },
   {
-    label: "Servicios/Productos",
+    label: "Cupones",
     href: "/dashboard/admin/servicios",
-    icon: ShoppingBag,
+    icon: Tag,
   },
   {
     label: "Solicitudes de Alta",

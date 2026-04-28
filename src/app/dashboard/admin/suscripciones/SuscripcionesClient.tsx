@@ -49,14 +49,18 @@ const fmtDate = (d: string | null) => {
 
 const isExpired = (d: string) => new Date(d) < new Date();
 
-function computePayStatus(lastPayoutDate: string | null): "activo" | "pendiente" | "inactivo" {
+function computePayStatus(lastPayoutDate: string | null, expirationDate: string): "activo" | "pendiente" | "inactivo" {
   if (!lastPayoutDate) return "inactivo";
   const now = new Date();
   const last = new Date(lastPayoutDate);
   const monthsAgo =
     (now.getFullYear() - last.getFullYear()) * 12 + (now.getMonth() - last.getMonth());
   if (monthsAgo <= 0) return "activo";
-  if (monthsAgo === 1) return "pendiente";
+  if (monthsAgo === 1) {
+    // If the subscription hasn't expired yet, treat as active
+    const expired = new Date(expirationDate) < now;
+    return expired ? "pendiente" : "activo";
+  }
   return "inactivo";
 }
 
@@ -118,7 +122,7 @@ function DetailDrawer({
   const [payouts, setPayouts] = useState<Payout[] | null>(null);
   const [loadingPayouts, setLoadingPayouts] = useState(false);
   const [editExpiration, setEditExpiration] = useState(instance.expiration_date?.slice(0, 10) ?? "");
-  const computedStatus = computePayStatus(instance.last_payout_date);
+  const computedStatus = computePayStatus(instance.last_payout_date, instance.expiration_date);
   const [editPlan, setEditPlan] = useState(String(instance.fk_subscription_id));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -429,7 +433,7 @@ export default function SuscripcionesClient({
     .filter((i) => {
       const q = search.toLowerCase();
       if (q && !i.entity_name?.toLowerCase().includes(q) && !i.owner_name?.toLowerCase().includes(q) && !i.owner_email?.toLowerCase().includes(q)) return false;
-      if (filterState !== "todos" && computePayStatus(i.last_payout_date) !== filterState) return false;
+      if (filterState !== "todos" && computePayStatus(i.last_payout_date, i.expiration_date) !== filterState) return false;
       if (filterType !== "todos" && i.entity_type !== filterType) return false;
       return true;
     })
@@ -443,9 +447,9 @@ export default function SuscripcionesClient({
 
   // Counters
   const total = instances.length;
-  const active = instances.filter((i) => computePayStatus(i.last_payout_date) === "activo").length;
+  const active = instances.filter((i) => computePayStatus(i.last_payout_date, i.expiration_date) === "activo").length;
   const expiredCount = instances.filter((i) => isExpired(i.expiration_date)).length;
-  const pendingCount = instances.filter((i) => computePayStatus(i.last_payout_date) === "pendiente").length;
+  const pendingCount = instances.filter((i) => computePayStatus(i.last_payout_date, i.expiration_date) === "pendiente").length;
 
   return (
     <div className="min-h-screen bg-[var(--guander-cream,#f8f6f1)] p-6">
@@ -577,7 +581,7 @@ export default function SuscripcionesClient({
                       <div className="text-xs text-gray-400">{money(inst.plan_amount)}/mes</div>
                     </td>
                     <td className="px-4 py-3">
-                      <StateBadge state={computePayStatus(inst.last_payout_date)} />
+                      <StateBadge state={computePayStatus(inst.last_payout_date, inst.expiration_date)} />
                     </td>
                     <td className="px-4 py-3">
                       <span className={isExpired(inst.expiration_date) ? "text-red-500 font-semibold" : "text-gray-600"}>

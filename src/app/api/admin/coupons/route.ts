@@ -1,10 +1,20 @@
+﻿import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/cloudflare-d1';
-import CuponesClient from './CuponesClient';
-import type { CouponRow } from '@/app/api/admin/coupons/route';
 
-export default async function ServiciosPage() {
-  let coupons: CouponRow[] = [];
+export interface CouponRow {
+  id_coupon: number;
+  owner_type: 'profesional' | 'local';
+  owner_name: string;
+  name: string;
+  description: string;
+  expiration_date: string;
+  point_req: number;
+  amount: number;
+  code_coupon: string;
+  state_name: string;
+}
 
+export async function GET() {
   try {
     const [profCoupons, storeCoupons] = await Promise.all([
       queryD1<CouponRow>(
@@ -49,13 +59,13 @@ export default async function ServiciosPage() {
       ),
     ]);
 
-    coupons = [...profCoupons, ...storeCoupons].sort(
+    const coupons: CouponRow[] = [...profCoupons, ...storeCoupons].sort(
       (a, b) => (b.expiration_date ?? '').localeCompare(a.expiration_date ?? ''),
     );
-  } catch {
-    coupons = [];
+
+    return NextResponse.json({ success: true, coupons });
+  } catch (e) {
+    console.error('admin coupons GET error', e);
+    return NextResponse.json({ success: false, coupons: [] }, { status: 500 });
   }
-
-  return <CuponesClient initialCoupons={coupons} />;
 }
-

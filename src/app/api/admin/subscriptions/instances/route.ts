@@ -233,5 +233,22 @@ export async function POST(request: NextRequest) {
     { revalidate: false },
   );
 
+  // If the subscription is expired, extend expiration by 1 month from the payment date
+  const subRows = await queryD1<{ expiration_date: string }>(
+    'SELECT expiration_date FROM store_sub WHERE id_store_sub = ? LIMIT 1',
+    [id_store_sub],
+    { revalidate: false },
+  );
+  const currentExpiration = subRows[0]?.expiration_date;
+  if (currentExpiration && new Date(currentExpiration) < new Date(payDate)) {
+    const newExp = new Date(`${payDate}T00:00:00Z`);
+    newExp.setUTCMonth(newExp.getUTCMonth() + 1);
+    await queryD1(
+      'UPDATE store_sub SET expiration_date = ? WHERE id_store_sub = ?',
+      [newExp.toISOString().slice(0, 10), id_store_sub],
+      { revalidate: false },
+    );
+  }
+
   return NextResponse.json({ success: true });
 }
