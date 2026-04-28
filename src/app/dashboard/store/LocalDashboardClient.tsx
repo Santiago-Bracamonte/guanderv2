@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -18,6 +18,10 @@ import {
   Drawer,
   IconButton,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   List,
   ListItemButton,
   ListItemIcon,
@@ -43,6 +47,7 @@ import ReviewsRoundedIcon from "@mui/icons-material/ReviewsRounded";
 import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
 import MonetizationOnRoundedIcon from "@mui/icons-material/MonetizationOnRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import SearchIcon from "@mui/icons-material/Search";
 import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
@@ -62,7 +67,8 @@ type DashboardSection =
   | "promociones"
   | "cupones"
   | "reseñas"
-  | "notificaciones";
+  | "notificaciones"
+  | "perfil";
 
 const drawerWidth = 284;
 
@@ -95,6 +101,7 @@ const navItems: Array<{ id: DashboardSection; label: string; icon: React.ReactNo
   { id: "cupones", label: "Generar Consumo", icon: <ConfirmationNumberRoundedIcon /> },
   { id: "reseñas", label: "Reseñas", icon: <ReviewsRoundedIcon /> },
   { id: "notificaciones", label: "Notificaciones", icon: <NotificationsActiveRoundedIcon /> },
+  { id: "perfil", label: "Mi Perfil", icon: <StorefrontRoundedIcon /> },
 ];
 
 function money(value: number): string {
@@ -1022,8 +1029,8 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
                   sx={{
                     p: 1.4,
                     borderRadius: 2,
-                    bgcolor: "rgba(255,255,255,0.1)",
-                    border: "1px solid rgba(255,255,255,0.2)",
+                    bgcolor: "rgba(255,255,255,0.13)",
+                    border: "1px solid rgba(255,255,255,0.28)",
                   }}
                 >
                   <Stack
@@ -1033,13 +1040,13 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
                     gap={1}
                   >
                     <Box>
-                      <Typography variant="body1" sx={{ fontWeight: 900 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 900, color: "#fff" }}>
                         {plan.name}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.85)", mt: 0.2 }}>
+                      <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.82)", mt: 0.2 }}>
                         {plan.description}
                       </Typography>
-                      <Typography variant="body2" sx={{ mt: 0.6, fontWeight: 800 }}>
+                      <Typography variant="body2" sx={{ mt: 0.6, fontWeight: 800, color: "#a8e6c0" }}>
                         {money(plan.amount)} / mes
                       </Typography>
                     </Box>
@@ -1144,6 +1151,392 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
   );
 }
 
+// ─── Store profile editor ─────────────────────────────────────────────────────
+
+type CategoryOption = { id_category: number; name: string };
+
+type ProfileStore = {
+  name: string;
+  description: string;
+  address: string;
+  location: string;
+  image_url: string | null;
+  fk_category: number;
+  schedule_week: string | null;
+  schedule_weekend: string | null;
+  schedule_sunday: string | null;
+};
+
+function StoreProfileSection({ data }: { data: DashboardData }) {
+  const [form, setForm] = useState<ProfileStore>({
+    name: data.store.name,
+    description: data.store.description,
+    address: data.store.address,
+    location: data.store.location,
+    image_url: null,
+    fk_category: 0,
+    schedule_week: "",
+    schedule_weekend: "",
+    schedule_sunday: "",
+  });
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/store/profile", { cache: "no-store" });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+          data?: { store: ProfileStore; categories: CategoryOption[] };
+        };
+        if (!cancelled && json.data) {
+          const s = json.data.store;
+          setForm({
+            name: s.name ?? data.store.name,
+            description: s.description ?? data.store.description,
+            address: s.address ?? data.store.address,
+            location: s.location ?? data.store.location,
+            image_url: s.image_url ?? null,
+            fk_category: s.fk_category ?? 0,
+            schedule_week: s.schedule_week ?? "",
+            schedule_weekend: s.schedule_weekend ?? "",
+            schedule_sunday: s.schedule_sunday ?? "",
+          });
+          setCategories(json.data.categories);
+        }
+      } catch {
+        // use pre-filled defaults from data.store
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/admin/upload-image", {
+        method: "POST",
+        body: fd,
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+      if (!res.ok || !json.url) {
+        setError(json.error ?? "No se pudo subir la imagen.");
+      } else {
+        setForm((prev) => ({ ...prev, image_url: json.url! }));
+      }
+    } catch {
+      setError("Error de red al subir la imagen.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!form.name.trim()) {
+      setError("El nombre del local es requerido.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/store/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !json.success) {
+        setError(json.error ?? "No se pudo guardar los cambios.");
+        return;
+      }
+      setSuccess("Perfil actualizado correctamente.");
+    } catch {
+      setError("Error de red al guardar los cambios.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Stack spacing={2}>
+      <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
+        <CardContent>
+          <Typography variant="h6" color="#173a2d">
+            Datos del local
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            Editá el nombre, descripción, dirección, foto y horarios de tu
+            local.
+          </Typography>
+
+          {loading ? (
+            <Stack alignItems="center" sx={{ mt: 4, mb: 2 }}>
+              <CircularProgress size={28} sx={{ color: "#1f4b3b" }} />
+            </Stack>
+          ) : (
+            <>
+              {error && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {error}
+                </Alert>
+              )}
+              {success && (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  {success}
+                </Alert>
+              )}
+
+              {/* Photo */}
+              <Box
+                sx={{ mt: 2.5, display: "flex", alignItems: "center", gap: 2 }}
+              >
+                <Box
+                  sx={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: 3,
+                    border: "1px solid #d6e4da",
+                    overflow: "hidden",
+                    bgcolor: "#f3f9f5",
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {form.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={form.image_url}
+                      alt="Foto del local"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <StorefrontRoundedIcon
+                      sx={{ color: "#8cb8a4", fontSize: 40 }}
+                    />
+                  )}
+                </Box>
+                <Stack spacing={0.5}>
+                  <Typography variant="body2" fontWeight={700} color="#173a2d">
+                    Foto del local
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    JPG, PNG o WEBP · Máx. 10 MB
+                  </Typography>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    style={{ display: "none" }}
+                    onChange={(e) => void handleImagePick(e)}
+                  />
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={uploading}
+                    startIcon={
+                      uploading ? (
+                        <CircularProgress
+                          size={14}
+                          sx={{ color: "#1f4b3b" }}
+                        />
+                      ) : undefined
+                    }
+                    onClick={() => fileInputRef.current?.click()}
+                    sx={{
+                      alignSelf: "flex-start",
+                      borderColor: "#1f4b3b",
+                      color: "#1f4b3b",
+                      mt: 0.4,
+                    }}
+                  >
+                    {uploading ? "Subiendo…" : "Cambiar foto"}
+                  </Button>
+                </Stack>
+              </Box>
+
+              {/* Main fields */}
+              <Box
+                sx={{
+                  mt: 2.5,
+                  display: "grid",
+                  gap: 1.5,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(2, minmax(0, 1fr))",
+                  },
+                }}
+              >
+                <TextField
+                  label="Nombre del local"
+                  size="small"
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, name: e.target.value }))
+                  }
+                  inputProps={{ maxLength: 120 }}
+                />
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="profile-cat-label">Categoría</InputLabel>
+                  <Select
+                    labelId="profile-cat-label"
+                    label="Categoría"
+                    value={form.fk_category ? String(form.fk_category) : ""}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        fk_category: Number(e.target.value),
+                      }))
+                    }
+                  >
+                    {categories.map((c) => (
+                      <MenuItem
+                        key={c.id_category}
+                        value={String(c.id_category)}
+                      >
+                        {c.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Dirección"
+                  size="small"
+                  value={form.address}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, address: e.target.value }))
+                  }
+                  inputProps={{ maxLength: 200 }}
+                />
+                <TextField
+                  label="Coordenadas GPS (lat,lng)"
+                  size="small"
+                  placeholder="Déjá vacío para geocodificar automáticamente"
+                  value={form.location ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, location: e.target.value }))
+                  }
+                  helperText="Opcional · se geocodifica al guardar si está vacío"
+                />
+                <TextField
+                  label="Descripción"
+                  size="small"
+                  multiline
+                  minRows={3}
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, description: e.target.value }))
+                  }
+                  inputProps={{ maxLength: 800 }}
+                  sx={{ gridColumn: { xs: "1", md: "1 / span 2" } }}
+                />
+              </Box>
+
+              {/* Schedule */}
+              <Typography
+                variant="subtitle2"
+                sx={{ mt: 2.5, mb: 1.2, color: "#173a2d" }}
+              >
+                Horarios
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 1.5,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(3, minmax(0, 1fr))",
+                  },
+                }}
+              >
+                <TextField
+                  label="Lunes a Viernes"
+                  size="small"
+                  placeholder="ej: 9:00 - 18:00"
+                  value={form.schedule_week ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, schedule_week: e.target.value }))
+                  }
+                />
+                <TextField
+                  label="Sábados"
+                  size="small"
+                  placeholder="ej: 9:00 - 13:00"
+                  value={form.schedule_weekend ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      schedule_weekend: e.target.value,
+                    }))
+                  }
+                />
+                <TextField
+                  label="Domingos"
+                  size="small"
+                  placeholder="ej: Cerrado"
+                  value={form.schedule_sunday ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, schedule_sunday: e.target.value }))
+                  }
+                />
+              </Box>
+
+              <Stack direction="row" spacing={1.5} sx={{ mt: 2.5 }}>
+                <Button
+                  variant="contained"
+                  sx={{
+                    bgcolor: "#1f4b3b",
+                    "&:hover": { bgcolor: "#173a2d" },
+                  }}
+                  onClick={() => void handleSave()}
+                  disabled={saving}
+                  startIcon={
+                    saving ? (
+                      <CircularProgress size={16} sx={{ color: "#fff" }} />
+                    ) : undefined
+                  }
+                >
+                  {saving ? "Guardando…" : "Guardar cambios"}
+                </Button>
+              </Stack>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </Stack>
+  );
+}
+
 function sectionTitle(section: DashboardSection): string {
   switch (section) {
     case "dashboard":
@@ -1160,6 +1553,8 @@ function sectionTitle(section: DashboardSection): string {
       return "Reseñas";
     case "notificaciones":
       return "Notificaciones";
+    case "perfil":
+      return "Mi Perfil";
     default:
       return "Dashboard";
   }
@@ -1181,6 +1576,8 @@ function renderSection(section: DashboardSection, data: DashboardData, userRole?
       return <ReviewsSection data={data} />;
     case "notificaciones":
       return <NotificationsSection data={data} />;
+    case "perfil":
+      return <StoreProfileSection data={data} />;
     default:
       return <DashboardOverview data={data} />;
   }

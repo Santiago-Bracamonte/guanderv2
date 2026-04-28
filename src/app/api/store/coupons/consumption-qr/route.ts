@@ -10,6 +10,7 @@ type ConsumptionInputItem = {
 
 type ConsumptionInput = {
   customerEmail?: string;
+  couponCode?: string;
   items?: ConsumptionInputItem[];
 };
 
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
   }
 
   const customerEmail = normalizeEmail(body.customerEmail);
+  const couponCodeRaw = typeof body.couponCode === "string" ? body.couponCode.trim() : null;
   const items = Array.isArray(body.items) ? body.items : [];
 
   if (items.length === 0) {
@@ -152,7 +154,40 @@ export async function POST(request: NextRequest) {
   const subtotal = Number(
     normalizedItems.reduce((acc, item) => acc + item.lineTotal, 0).toFixed(2),
   );
-  const pointsEarn = normalizedItems.reduce((acc, item) => acc + item.pointsEarn, 0);
+
+  // ── Coupon discount ───────────────────────────────────────────────────────
+  let couponDiscount = 0;
+  let appliedCoupon: { id_coupon: number; name: string; amount: number } | null = null;
+  if (couponCodeRaw) {
+    const couponRows = await queryD1<{ id_coupon: number; name: string; amount: number }>(
+      `SELECT id_coupon, name, amount
+       FROM coupon_store
+       WHERE code_coupon = ?
+         AND fk_store = ?
+         AND state = 1
+         AND DATE(expiration_date) >= DATE('now')
+       LIMIT 1`,
+      [couponCodeRaw, context.storeId],
+      { revalidate: false },
+    );
+    if (couponRows[0]) {
+      appliedCoupon = couponRows[0];
+      couponDiscount = Math.min(appliedCoupon.amount, subtotal);
+    }
+  }
+
+  const finalAmount = Number((subtotal - couponDiscount).toFixed(2));
+
+  // Recalculate points on the discounted eligible base
+  const pointEligibleBase = normalizedItems.reduce(
+    (acc, item) => (item.acceptPoint ? acc + item.lineTotal : acc),
+    0,
+  );
+  const pointEligibleAfterDiscount =
+    subtotal > 0
+      ? Math.max(0, pointEligibleBase - couponDiscount * (pointEligibleBase / subtotal))
+      : 0;
+  const pointsEarn = Math.floor(pointEligibleAfterDiscount / 1000);
   const consumptionCode = buildConsumptionCode();
 
   const qrPayload = {
@@ -165,8 +200,17 @@ export async function POST(request: NextRequest) {
       email: resolvedCustomerEmail,
       name: resolvedCustomerName,
     },
+    coupon: appliedCoupon
+      ? {
+          id: appliedCoupon.id_coupon,
+          name: appliedCoupon.name,
+          discount: couponDiscount,
+        }
+      : null,
     summary: {
       subtotal,
+      discountAmount: couponDiscount,
+      finalAmount,
       pointsEarn,
       currency: "COP",
     },
@@ -180,6 +224,8 @@ export async function POST(request: NextRequest) {
       customerName: resolvedCustomerName,
       customerEmail: resolvedCustomerEmail,
       subtotal,
+      discountAmount: couponDiscount,
+      finalAmount,
       pointsEarn,
       services: normalizedItems,
       qrPayload,

@@ -580,6 +580,7 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
   const [selectedServiceAmount, setSelectedServiceAmount] = useState("");
   const [consumptionItems, setConsumptionItems] = useState<ConsumptionFormItem[]>([]);
   const [customerSummary, setCustomerSummary] = useState<{ name: string; email: string } | null>(null);
+  const [selectedCoupon, setSelectedCoupon] = useState<CouponRow | null>(null);
 
   async function loadServiceOptions() {
     setConsumptionError("");
@@ -617,12 +618,20 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
     const subtotal = Number(
       consumptionItems.reduce((acc, item) => acc + item.quantity * item.unitAmount, 0).toFixed(2),
     );
-    const points = consumptionItems.reduce((acc, item) => {
+    const pointEligibleBase = consumptionItems.reduce((acc, item) => {
       if (!item.acceptPoint) return acc;
-      return acc + Math.floor((item.quantity * item.unitAmount) / 1000);
+      return acc + item.quantity * item.unitAmount;
     }, 0);
-    return { subtotal, points };
-  }, [consumptionItems]);
+    const couponDiscount = selectedCoupon ? Math.min(selectedCoupon.amount, subtotal) : 0;
+    const discountedSubtotal = Number((subtotal - couponDiscount).toFixed(2));
+    // Distribute discount proportionally over point-eligible items
+    const pointEligibleAfterDiscount =
+      subtotal > 0
+        ? Math.max(0, pointEligibleBase - couponDiscount * (pointEligibleBase / subtotal))
+        : 0;
+    const points = Math.floor(pointEligibleAfterDiscount / 1000);
+    return { subtotal, couponDiscount, discountedSubtotal, points };
+  }, [consumptionItems, selectedCoupon]);
 
   function addServiceToConsumption() {
     setConsumptionError("");
@@ -673,6 +682,7 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
     setCustomerSummary(null);
     setQrDataUrl("");
     setSelectedQrCode("");
+    setSelectedCoupon(null);
   }
 
   async function generateConsumptionQr() {
@@ -689,6 +699,7 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
         quantity: item.quantity,
         unitAmount: item.unitAmount,
       })),
+      ...(selectedCoupon ? { couponCode: selectedCoupon.code_coupon } : {}),
     };
 
     const res = await fetch("/api/store/coupons/consumption-qr", {
@@ -784,17 +795,39 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
           {activeCoupons.length > 0 && (
             <Paper variant="outlined" sx={{ mt: 2, p: 1.5, borderColor: "#d6e4da", bgcolor: "#f8fcf9" }}>
               <Typography variant="caption" sx={{ color: "#173a2d", fontWeight: 700, display: "block", mb: 0.6 }}>
-                Cupones de descuento del local:
+                Cupones de descuento del local — hacé clic para aplicar al consumo:
               </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {activeCoupons.filter((c) => c.state === 1).length === 0 ? (
                   <Typography variant="caption" sx={{ color: "#5a7368" }}>Sin cupones activos</Typography>
                 ) : (
-                  activeCoupons.filter((c) => c.state === 1).map((coupon) => (
-                    <Chip key={coupon.id_coupon} label={coupon.name} size="small" sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
-                  ))
+                  activeCoupons.filter((c) => c.state === 1).map((coupon) => {
+                    const isSelected = selectedCoupon?.id_coupon === coupon.id_coupon;
+                    return (
+                      <Chip
+                        key={coupon.id_coupon}
+                        label={`${coupon.name}  −${money(coupon.amount)}`}
+                        size="small"
+                        onClick={() => setSelectedCoupon(isSelected ? null : coupon)}
+                        variant={isSelected ? "filled" : "outlined"}
+                        sx={{
+                          cursor: "pointer",
+                          fontWeight: isSelected ? 700 : 400,
+                          bgcolor: isSelected ? "#1f4b3b" : "#deebdf",
+                          color: isSelected ? "#fff" : "#173a2d",
+                          borderColor: "#b8d1c0",
+                          "&:hover": { bgcolor: isSelected ? "#173a2d" : "#c8dece" },
+                        }}
+                      />
+                    );
+                  })
                 )}
               </Stack>
+              {selectedCoupon && (
+                <Typography variant="caption" sx={{ mt: 0.8, display: "block", color: "#1f4b3b", fontWeight: 700 }}>
+                  Cupón aplicado: {selectedCoupon.name} — descuento de {money(selectedCoupon.amount)} sobre el total
+                </Typography>
+              )}
             </Paper>
           )}
 
@@ -912,10 +945,22 @@ export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?
               <Typography variant="body2" fontWeight={700} color="#173a2d">
                 Resumen del consumo
               </Typography>
-              <Typography variant="body2">Subtotal: {money(consumptionSummary.subtotal)}</Typography>
-              <Typography variant="body2" color="#173a2d" fontWeight={700}>
-                Puntos estimados: {consumptionSummary.points}
-              </Typography>
+              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                <Typography variant="body2">Subtotal: {money(consumptionSummary.subtotal)}</Typography>
+                {consumptionSummary.couponDiscount > 0 && (
+                  <Typography variant="body2" color="#c0392b">
+                    Descuento: −{money(consumptionSummary.couponDiscount)}
+                  </Typography>
+                )}
+                {consumptionSummary.couponDiscount > 0 && (
+                  <Typography variant="body2" fontWeight={700} color="#1f4b3b">
+                    Total: {money(consumptionSummary.discountedSubtotal)}
+                  </Typography>
+                )}
+                <Typography variant="body2" color="#173a2d" fontWeight={700}>
+                  Puntos estimados: {consumptionSummary.points}
+                </Typography>
+              </Stack>
             </Stack>
           </Paper>
 
