@@ -67,6 +67,8 @@ function useToast() {
   const dismiss = useCallback((id: number) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
   return { toasts, showToast, dismiss };
 }
+
+export default function PlanesClient({
   initialPlans,
 }: {
   initialPlans: SubscriptionItem[];
