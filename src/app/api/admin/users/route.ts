@@ -110,6 +110,23 @@ export async function POST(request: Request) {
   }
 }
 
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id es requerido' }, { status: 400 });
+  const userId = Number(id);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
+  }
+  try {
+    await queryD1('UPDATE users SET state = 0 WHERE id_user = ?', [userId], { revalidate: false });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/admin/users error:', err);
+    return NextResponse.json({ error: 'Error al eliminar usuario' }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: Request) {
   let body: {
     id_user?: number;

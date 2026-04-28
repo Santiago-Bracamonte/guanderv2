@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
-import { Search, Star, MapPin, Briefcase, X, CheckCircle, XCircle, Upload } from "lucide-react";
+import { Search, Star, MapPin, Briefcase, X, CheckCircle, XCircle, Upload, AlertTriangle, ChevronRight } from "lucide-react";
 
 export interface ProfessionalItem {
   id: number;
@@ -31,6 +31,71 @@ interface GeocodeSuggestion {
   displayName: string;
   lat: number;
   lng: number;
+}
+
+/* ─── Toast ─── */
+interface ToastMsg { id: number; type: "success" | "error"; text: string; }
+function ToastContainer({ toasts, dismiss }: { toasts: ToastMsg[]; dismiss: (id: number) => void }) {
+  return (
+    <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
+      {toasts.map((t) => (
+        <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium pointer-events-auto ${
+          t.type === "success" ? "bg-green-600 text-white" : "bg-red-500 text-white"
+        }`}>
+          {t.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}
+          <span>{t.text}</span>
+          <button onClick={() => dismiss(t.id)} className="ml-2 hover:opacity-70 transition-opacity"><X size={14} /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+function useToast() {
+  const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const counterRef = useRef(0);
+  const showToast = useCallback((type: "success" | "error", text: string) => {
+    const id = ++counterRef.current;
+    setToasts((prev) => [...prev, { id, type, text }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+  const dismiss = useCallback((id: number) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
+  return { toasts, showToast, dismiss };
+}
+function ConfirmModal({
+  open, onClose, onConfirm, title, message,
+  confirmLabel = "Confirmar", danger = false, loading = false,
+}: {
+  open: boolean; onClose: () => void; onConfirm: () => void;
+  title: string; message: string; confirmLabel?: string; danger?: boolean; loading?: boolean;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[55] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start gap-3 mb-5">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: danger ? "#fde8e8" : "#d4edda" }}>
+            <AlertTriangle size={18} color={danger ? "#c0392b" : "#1f4b3b"} />
+          </div>
+          <div>
+            <h3 className="font-bold text-base" style={{ color: "var(--guander-ink)" }}>{title}</h3>
+            <p className="text-sm mt-1" style={{ color: "var(--guander-muted)" }}>{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
+            style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}>Cancelar</button>
+          <button onClick={onConfirm} disabled={loading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: danger ? "#c0392b" : "var(--guander-forest)" }}>
+            {loading ? "Procesando..." : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const CLOUD_NAME = "dwckkyqpw";
@@ -239,6 +304,7 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
   const [currentPage, setCurrentPage] = useState(1);
   const [saving, setSaving] = useState(false);
   const ITEMS_PER_PAGE = 8;
+  const { toasts, showToast, dismiss } = useToast();
 
   /* ── Edit form state ── */
   const [formDescription, setFormDescription] = useState("");
@@ -405,8 +471,9 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
         ),
       );
       setEditProfessional(null);
+      showToast("success", "Cambios guardados correctamente");
     } catch {
-      alert("Error al guardar los cambios");
+      showToast("error", "Error al guardar los cambios");
     } finally {
       setSaving(false);
     }
@@ -492,18 +559,11 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
                 )}
                 <div className="mt-auto pt-3 flex gap-2">
                   <button
-                    onClick={() => setViewProfessional(prof)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
-                    style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}
-                  >
-                    Ver
-                  </button>
-                  <button
                     onClick={() => openEdit(prof)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90"
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-1.5 transition cursor-pointer hover:opacity-90"
                     style={{ backgroundColor: "var(--guander-forest)" }}
                   >
-                    Editar
+                    Gestionar <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
@@ -606,7 +666,7 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    if (file.size > 5 * 1024 * 1024) { alert("La imagen no puede superar 5 MB"); return; }
+                    if (file.size > 5 * 1024 * 1024) { showToast("error", "La imagen no puede superar 5 MB"); return; }
                     setFormImageFile(file);
                     setFormImagePreview(URL.createObjectURL(file));
                   }}
@@ -661,25 +721,20 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
               {/* Location + Stars */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-sm font-medium" style={{ color: "var(--guander-ink)" }}>Ubicación</label>
-                    <button
-                      type="button"
-                      onClick={() => setShowMapPicker(true)}
-                      className="text-xs font-semibold px-3 py-1 rounded-lg border hover:bg-white transition"
-                      style={{ borderColor: "var(--guander-border)", color: "var(--guander-forest)" }}
-                    >
-                      Elegir en mapa
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={formLocation}
-                    onChange={(e) => { setFormLocation(e.target.value); if (formErrors.location) setFormErrors((p) => ({ ...p, location: "" })); }}
-                    className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                    style={{ border: `1px solid ${formErrors.location ? "#ef4444" : "var(--guander-border)"}`, color: "var(--guander-ink)" }}
-                    placeholder="Lat,Lng"
-                  />
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--guander-ink)" }}>Ubicación</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowMapPicker(true)}
+                    className="w-full px-4 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer hover:opacity-90"
+                    style={{ backgroundColor: "var(--guander-forest)", color: "#fff" }}
+                  >
+                    <MapPin size={15} /> {formLocation ? "Cambiar en mapa" : "Elegir en mapa"}
+                  </button>
+                  {formLocation && (
+                    <p className="text-xs mt-1.5" style={{ color: "var(--guander-muted)" }}>
+                      📍 {formAddress || formLocation}
+                    </p>
+                  )}
                   {formErrors.location && <p className="text-xs mt-1 text-red-500">{formErrors.location}</p>}
                 </div>
                 <div>
@@ -803,6 +858,8 @@ export default function ProfesionalesClient({ initialProfessionals }: { initialP
           }}
         />
       )}
+
+      <ToastContainer toasts={toasts} dismiss={dismiss} />
 
       {/* ── View modal ── */}
       <Modal open={!!viewProfessional && !editProfessional} onClose={() => setViewProfessional(null)}>

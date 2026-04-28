@@ -1,7 +1,7 @@
 "use client";
 
 import { Shield, User, Eye, AlertCircle, CheckCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ConfiguracionPage() {
   // Change Password State
@@ -13,6 +13,26 @@ export default function ConfiguracionPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  // Profile info
+  const [adminEmail, setAdminEmail] = useState<string | null>(null);
+  const [sessionTime, setSessionTime] = useState<string>("");
+
+  useEffect(() => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setSessionTime(`Hoy a las ${pad(now.getHours())}:${pad(now.getMinutes())}`);
+
+    const fetchEmail = async () => {
+      try {
+        const res = await fetch("/api/admin/auth-status");
+        if (!res.ok) return;
+        const data = (await res.json()) as { email?: string };
+        if (data.email) setAdminEmail(data.email);
+      } catch { /* ignore */ }
+    };
+    void fetchEmail();
+  }, []);
 
   // Activity Log State
   const [showAllActivity, setShowAllActivity] = useState(false);
@@ -169,7 +189,7 @@ export default function ConfiguracionPage() {
                 className="text-sm mt-0.5"
                 style={{ color: "var(--guander-ink)" }}
               >
-                admin123@gmail.com
+                {adminEmail ?? "—"}
               </p>
             </div>
             <div>
@@ -197,7 +217,7 @@ export default function ConfiguracionPage() {
                 className="text-sm mt-0.5"
                 style={{ color: "var(--guander-ink)" }}
               >
-                Hoy a las 14:32
+                {sessionTime || "—"}
               </p>
             </div>
           </div>

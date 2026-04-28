@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import L from "leaflet";
 import {
@@ -8,9 +8,14 @@ import {
   Star,
   ImageIcon,
   Plus,
+  FolderOpen,
   X,
   MapPin,
   Building2,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -318,6 +323,74 @@ function MapLocationPicker({
   );
 }
 
+/* ─── Toast ─── */
+interface ToastMsg { id: number; type: "success" | "error"; text: string; }
+
+function ToastContainer({ toasts, dismiss }: { toasts: ToastMsg[]; dismiss: (id: number) => void }) {
+  return (
+    <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
+      {toasts.map((t) => (
+        <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium pointer-events-auto ${
+          t.type === "success" ? "bg-green-600 text-white" : "bg-red-500 text-white"
+        }`}>
+          {t.type === "success" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+          <span>{t.text}</span>
+          <button onClick={() => dismiss(t.id)} className="ml-2 hover:opacity-70 transition-opacity"><X size={14} /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function useToast() {
+  const [toasts, setToasts] = useState<ToastMsg[]>([]);
+  const counterRef = useRef(0);
+  const showToast = useCallback((type: "success" | "error", text: string) => {
+    const id = ++counterRef.current;
+    setToasts((prev) => [...prev, { id, type, text }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+  const dismiss = useCallback((id: number) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
+  return { toasts, showToast, dismiss };
+}
+
+function ConfirmModal({
+  open, onClose, onConfirm, title, message,
+  confirmLabel = "Confirmar", danger = false, loading = false,
+}: {
+  open: boolean; onClose: () => void; onConfirm: () => void;
+  title: string; message: string; confirmLabel?: string; danger?: boolean; loading?: boolean;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[55] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start gap-3 mb-5">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: danger ? "#fde8e8" : "#d4edda" }}>
+            <AlertTriangle size={18} color={danger ? "#c0392b" : "#1f4b3b"} />
+          </div>
+          <div>
+            <h3 className="font-bold text-base" style={{ color: "var(--guander-ink)" }}>{title}</h3>
+            <p className="text-sm mt-1" style={{ color: "var(--guander-muted)" }}>{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
+            style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}>Cancelar</button>
+          <button onClick={onConfirm} disabled={loading}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: danger ? "#c0392b" : "var(--guander-forest)" }}>
+            {loading ? "Procesando..." : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const CLOUD_NAME = "dwckkyqpw";
 const UPLOAD_PRESET = "guander_unsigned";
 
@@ -363,6 +436,10 @@ export default function LocalesClient({
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryFormName, setCategoryFormName] = useState("");
   const [categoryFormDescription, setCategoryFormDescription] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteCategoryId, setConfirmDeleteCategoryId] = useState<number | null>(null);
+  const [confirmDeactivateId, setConfirmDeactivateId] = useState<number | null>(null);
+  const { toasts, showToast, dismiss } = useToast();
 
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -533,7 +610,7 @@ export default function LocalesClient({
   // Category management functions
   const handleSaveCategory = async () => {
     if (!categoryFormName.trim()) {
-      alert("El nombre de la categoría es requerido");
+      showToast("error", "El nombre de la categoría es requerido");
       return;
     }
     try {
@@ -549,21 +626,17 @@ export default function LocalesClient({
         });
         const data = (await res.json()) as { error?: string; data?: Category };
         if (!res.ok) {
-          alert(data.error || "Error al actualizar categoría");
+          showToast("error", data.error || "Error al actualizar categoría");
           return;
         }
         setCategories((prev) =>
           prev.map((c) =>
             c.id_category === editingCategory.id_category
-              ? {
-                  ...c,
-                  name: categoryFormName.trim(),
-                  description: categoryFormDescription.trim(),
-                }
+              ? { ...c, name: categoryFormName.trim(), description: categoryFormDescription.trim() }
               : c,
           ),
         );
-        alert("Categoría actualizada exitosamente");
+        showToast("success", "Categoría actualizada");
       } else {
         const res = await fetch("/api/admin/locales/categories", {
           method: "POST",
@@ -575,11 +648,11 @@ export default function LocalesClient({
         });
         const data = (await res.json()) as { error?: string; data?: Category };
         if (!res.ok) {
-          alert(data.error || "Error al crear categoría");
+          showToast("error", data.error || "Error al crear categoría");
           return;
         }
         if (!data.data) {
-          alert("No se recibió la categoría creada");
+          showToast("error", "No se recibió la categoría creada");
           return;
         }
         setCategories((prev) =>
@@ -587,36 +660,49 @@ export default function LocalesClient({
             a.name.localeCompare(b.name),
           ),
         );
-        alert("Categoría creada exitosamente");
+        showToast("success", "Categoría creada");
       }
       setCategoryFormName("");
       setCategoryFormDescription("");
       setEditingCategory(null);
-    } catch (error) {
-      console.error("Error en handleSaveCategory:", error);
-      alert("Error al guardar categoría");
+    } catch {
+      showToast("error", "Error al guardar categoría");
     }
   };
 
-  const handleDeleteCategory = async (categoryId: number) => {
-    if (!confirm("¿Estás seguro de eliminar esta categoría?")) return;
+  const handleDeleteCategory = (categoryId: number) => {
+    setConfirmDeleteCategoryId(categoryId);
+  };
+
+  const executeDeleteCategory = async (categoryId: number) => {
     try {
       const res = await fetch(
         `/api/admin/locales/categories?id=${categoryId}`,
-        {
-          method: "DELETE",
-        },
+        { method: "DELETE" },
       );
       const data = (await res.json()) as { error?: string; success?: boolean };
       if (!res.ok) {
-        alert(data.error || "Error al eliminar categoría");
+        showToast("error", data.error || "Error al eliminar categoría");
         return;
       }
       setCategories((prev) => prev.filter((c) => c.id_category !== categoryId));
-      alert("Categoría eliminada exitosamente");
-    } catch (error) {
-      console.error("Error en handleDeleteCategory:", error);
-      alert("Error al eliminar categoría");
+      showToast("success", "Categoría eliminada");
+    } catch {
+      showToast("error", "Error al eliminar categoría");
+    } finally {
+      setConfirmDeleteCategoryId(null);
+    }
+  };
+
+  const executeDeactivate = async (id: number) => {
+    try {
+      const res = await fetch(`/api/admin/locales?id=${id}&action=deactivate`, { method: "DELETE" });
+      if (!res.ok) { showToast("error", "Error al desactivar el local"); return; }
+      showToast("success", "Local desactivado correctamente");
+    } catch {
+      showToast("error", "Error al desactivar el local");
+    } finally {
+      setConfirmDeactivateId(null);
     }
   };
 
@@ -651,7 +737,7 @@ export default function LocalesClient({
         try {
           imageUrl = await uploadToCloudinary(formImageFile);
         } catch (e) {
-          alert(`Error subiendo imagen: ${String(e)}`);
+          showToast("error", `Error subiendo imagen: ${String(e)}`);
           setSaving(false);
           return;
         }
@@ -694,8 +780,9 @@ export default function LocalesClient({
         ),
       );
       setEditLocale(null);
+      showToast("success", "Local guardado correctamente");
     } catch {
-      alert("Error al guardar");
+      showToast("error", "Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -710,7 +797,7 @@ export default function LocalesClient({
         try {
           imageUrl = await uploadToCloudinary(formImageFile);
         } catch (e) {
-          alert(`Error subiendo imagen: ${String(e)}`);
+          showToast("error", `Error subiendo imagen: ${String(e)}`);
           setSaving(false);
           return;
         }
@@ -735,7 +822,7 @@ export default function LocalesClient({
         error?: string;
       };
       if (!res.ok || data.error) {
-        alert(data.error ?? "Error al crear local");
+        showToast("error", data.error ?? "Error al crear local");
         setSaving(false);
         return;
       }
@@ -768,20 +855,28 @@ export default function LocalesClient({
       };
       setLocales((prev) => [newLocale, ...prev]);
       setShowAdd(false);
+      showToast("success", "Local creado correctamente");
     } catch {
-      alert("Error al crear local");
+      showToast("error", "Error al crear local");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("¿Estás seguro de eliminar este local?")) return;
+  const handleDelete = (id: number) => {
+    setConfirmDeleteId(id);
+  };
+
+  const executeDelete = async (id: number) => {
     try {
       await fetch(`/api/admin/locales?id=${id}`, { method: "DELETE" });
       setLocales((prev) => prev.filter((l) => l.id !== id));
+      setViewLocale(null);
+      showToast("success", "Local eliminado correctamente");
     } catch {
-      alert("Error al eliminar");
+      showToast("error", "Error al eliminar el local");
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -789,7 +884,12 @@ export default function LocalesClient({
     const matchSearch =
       search.trim() === "" ||
       locale.name.toLowerCase().includes(search.toLowerCase()) ||
-      locale.email.toLowerCase().includes(search.toLowerCase());
+      locale.email.toLowerCase().includes(search.toLowerCase()) ||
+      locale.description?.toLowerCase().includes(search.toLowerCase()) ||
+      locale.category?.toLowerCase().includes(search.toLowerCase()) ||
+      locale.address?.toLowerCase().includes(search.toLowerCase()) ||
+      locale.location?.toLowerCase().includes(search.toLowerCase()) ||
+      (locale.rating != null && String(locale.rating).includes(search));
     const matchCategory =
       category === "Todas las categorías" || locale.category === category;
     return matchSearch && matchCategory;
@@ -992,36 +1092,25 @@ export default function LocalesClient({
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label
-              className="block text-sm font-medium"
-              style={{ color: "var(--guander-ink)" }}
-            >
-              Ubicación
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowMapPicker(true)}
-              className="text-xs font-semibold px-3 py-1 rounded-lg border hover:bg-white transition"
-              style={{
-                borderColor: "var(--guander-border)",
-                color: "var(--guander-forest)",
-              }}
-            >
-              Elegir en mapa
-            </button>
-          </div>
-          <input
-            type="text"
-            value={formLocation}
-            onChange={(e) => { setFormLocation(e.target.value); if (formErrors.location) setFormErrors((p) => ({ ...p, location: "" })); }}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-            style={{
-              border: `1px solid ${formErrors.location ? "#ef4444" : "var(--guander-border)"}`,
-              color: "var(--guander-ink)",
-            }}
-            placeholder="Lat,Lng del punto exacto"
-          />
+          <label
+            className="block text-sm font-medium mb-1.5"
+            style={{ color: "var(--guander-ink)" }}
+          >
+            Ubicación
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowMapPicker(true)}
+            className="w-full px-4 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer hover:opacity-90"
+            style={{ backgroundColor: "var(--guander-forest)", color: "#fff" }}
+          >
+            <MapPin size={15} /> {formLocation ? "Cambiar en mapa" : "Elegir en mapa"}
+          </button>
+          {formLocation && (
+            <p className="text-xs mt-1.5" style={{ color: "var(--guander-muted)" }}>
+              📍 {formAddress || formLocation}
+            </p>
+          )}
           {formErrors.location && <p className="text-xs mt-1 text-red-500">{formErrors.location}</p>}
         </div>
         <div>
@@ -1152,30 +1241,12 @@ export default function LocalesClient({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1
-          className="text-xl font-bold"
-          style={{ color: "var(--guander-ink)" }}
-        >
-          Gestión de Locales
-        </h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              openAddCategory();
-              setShowCategoriesModal(true);
-            }}
-            className="px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-1 hover:bg-gray-50 transition"
-            style={{
-              borderColor: "var(--guander-border)",
-              color: "var(--guander-forest)",
-            }}
-            title="Gestionar categorías"
-          >
-            <Plus size={14} /> Categorías
-          </button>
-        </div>
-      </div>
+      <h1
+        className="text-xl font-bold"
+        style={{ color: "var(--guander-ink)" }}
+      >
+        Gestión de Locales
+      </h1>
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
@@ -1219,6 +1290,16 @@ export default function LocalesClient({
             </option>
           ))}
         </select>
+        <button
+          onClick={() => {
+            openAddCategory();
+            setShowCategoriesModal(true);
+          }}
+          className="px-5 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer transition hover:opacity-90"
+          style={{ backgroundColor: "#d4edda", color: "#1f4b3b", border: "1px solid #a8c9a8" }}
+        >
+          <FolderOpen size={16} /> Categorías
+        </button>
         <button
           onClick={openAdd}
           className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 cursor-pointer transition hover:opacity-90"
@@ -1314,18 +1395,18 @@ export default function LocalesClient({
                     </div>
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => setViewLocale(locale)}
-                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
-                        style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}
+                        onClick={() => setConfirmDeactivateId(locale.id)}
+                        className="px-4 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
+                        style={{ backgroundColor: "#fde8e8", color: "#c0392b" }}
                       >
-                        Ver
+                        Desactivar
                       </button>
                       <button
                         onClick={() => openEdit(locale)}
-                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90"
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-1.5 transition cursor-pointer hover:opacity-90"
                         style={{ backgroundColor: "var(--guander-forest)" }}
                       >
-                        Editar
+                        Gestionar <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
@@ -1767,6 +1848,35 @@ export default function LocalesClient({
           </button>
         </div>
       </Modal>
+
+      <ToastContainer toasts={toasts} dismiss={dismiss} />
+      <ConfirmModal
+        open={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={() => confirmDeleteId !== null && void executeDelete(confirmDeleteId)}
+        title="Eliminar local"
+        message="¿Seguro que deseas eliminar este local? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        danger
+      />
+      <ConfirmModal
+        open={confirmDeleteCategoryId !== null}
+        onClose={() => setConfirmDeleteCategoryId(null)}
+        onConfirm={() => confirmDeleteCategoryId !== null && void executeDeleteCategory(confirmDeleteCategoryId)}
+        title="Eliminar categoría"
+        message="¿Seguro que deseas eliminar esta categoría?"
+        confirmLabel="Eliminar"
+        danger
+      />
+      <ConfirmModal
+        open={confirmDeactivateId !== null}
+        onClose={() => setConfirmDeactivateId(null)}
+        onConfirm={() => confirmDeactivateId !== null && void executeDeactivate(confirmDeactivateId)}
+        title="Desactivar local"
+        message="¿Desactivar este local? El propietario no podrá acceder a la plataforma."
+        confirmLabel="Desactivar"
+        danger
+      />
     </div>
   );
 }

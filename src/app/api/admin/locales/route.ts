@@ -257,11 +257,23 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
+  const action = searchParams.get('action'); // 'delete' | 'deactivate' | 'activate'
+
   if (!id) {
     return NextResponse.json({ error: 'id es requerido' }, { status: 400 });
   }
 
   try {
+    if (action === 'deactivate' || action === 'activate') {
+      const newState = action === 'activate' ? 1 : 0;
+      // Deactivate/activate the store owner's user account
+      await queryD1(
+        'UPDATE users SET state = ? WHERE id_user = (SELECT fk_user FROM stores WHERE id_store = ?)',
+        [newState, Number(id)],
+        { revalidate: false },
+      );
+      return NextResponse.json({ success: true });
+    }
     await queryD1('DELETE FROM stores WHERE id_store = ?', [Number(id)], { revalidate: false });
     return NextResponse.json({ success: true });
   } catch {

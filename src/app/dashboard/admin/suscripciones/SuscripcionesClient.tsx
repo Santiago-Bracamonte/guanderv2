@@ -49,6 +49,17 @@ const fmtDate = (d: string | null) => {
 
 const isExpired = (d: string) => new Date(d) < new Date();
 
+function computePayStatus(lastPayoutDate: string | null): "activo" | "pendiente" | "inactivo" {
+  if (!lastPayoutDate) return "inactivo";
+  const now = new Date();
+  const last = new Date(lastPayoutDate);
+  const monthsAgo =
+    (now.getFullYear() - last.getFullYear()) * 12 + (now.getMonth() - last.getMonth());
+  if (monthsAgo <= 0) return "activo";
+  if (monthsAgo === 1) return "pendiente";
+  return "inactivo";
+}
+
 const STATE_LABELS: Record<string, { label: string; color: string }> = {
   activo: { label: "Activo", color: "bg-green-100 text-green-800" },
   inactivo: { label: "Inactivo", color: "bg-gray-100 text-gray-700" },
@@ -106,8 +117,8 @@ function DetailDrawer({
 }) {
   const [payouts, setPayouts] = useState<Payout[] | null>(null);
   const [loadingPayouts, setLoadingPayouts] = useState(false);
-  const [editState, setEditState] = useState(instance.state_payout);
   const [editExpiration, setEditExpiration] = useState(instance.expiration_date?.slice(0, 10) ?? "");
+  const computedStatus = computePayStatus(instance.last_payout_date);
   const [editPlan, setEditPlan] = useState(String(instance.fk_subscription_id));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -144,7 +155,6 @@ function DetailDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id_store_sub: instance.id_store_sub,
-          state_payout: editState,
           expiration_date: editExpiration,
           fk_subscription_id: Number(editPlan),
         }),
@@ -231,17 +241,15 @@ function DetailDrawer({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Estado</label>
-              <select
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--guander-forest)]"
-                value={editState}
-                onChange={(e) => setEditState(e.target.value)}
-              >
-                <option value="activo">Activo</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="inactivo">Inactivo</option>
-                <option value="vencido">Vencido</option>
-              </select>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Estado de pago</label>
+              <div className="flex items-center h-[38px]">
+                <StateBadge state={computedStatus} />
+                <span className="ml-2 text-xs text-gray-400">
+                  {computedStatus === "activo" && "Pagó este mes"}
+                  {computedStatus === "pendiente" && "No pagó este mes"}
+                  {computedStatus === "inactivo" && "Sin pagos recientes"}
+                </span>
+              </div>
             </div>
 
             <div>
@@ -421,7 +429,7 @@ export default function SuscripcionesClient({
     .filter((i) => {
       const q = search.toLowerCase();
       if (q && !i.entity_name?.toLowerCase().includes(q) && !i.owner_name?.toLowerCase().includes(q) && !i.owner_email?.toLowerCase().includes(q)) return false;
-      if (filterState !== "todos" && i.state_payout?.toLowerCase() !== filterState) return false;
+      if (filterState !== "todos" && computePayStatus(i.last_payout_date) !== filterState) return false;
       if (filterType !== "todos" && i.entity_type !== filterType) return false;
       return true;
     })
@@ -435,9 +443,9 @@ export default function SuscripcionesClient({
 
   // Counters
   const total = instances.length;
-  const active = instances.filter((i) => i.state_payout?.toLowerCase() === "activo").length;
+  const active = instances.filter((i) => computePayStatus(i.last_payout_date) === "activo").length;
   const expiredCount = instances.filter((i) => isExpired(i.expiration_date)).length;
-  const pendingCount = instances.filter((i) => i.state_payout?.toLowerCase() === "pendiente").length;
+  const pendingCount = instances.filter((i) => computePayStatus(i.last_payout_date) === "pendiente").length;
 
   return (
     <div className="min-h-screen bg-[var(--guander-cream,#f8f6f1)] p-6">
@@ -490,10 +498,9 @@ export default function SuscripcionesClient({
           onChange={(e) => setFilterState(e.target.value)}
         >
           <option value="todos">Todos los estados</option>
-          <option value="activo">Activo</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="inactivo">Inactivo</option>
-          <option value="vencido">Vencido</option>
+          <option value="activo">Activo (pagó este mes)</option>
+          <option value="pendiente">Pendiente (no pagó este mes)</option>
+          <option value="inactivo">Inactivo (sin pagos)</option>
         </select>
         <select
           className="border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--guander-forest)]"
@@ -570,7 +577,7 @@ export default function SuscripcionesClient({
                       <div className="text-xs text-gray-400">{money(inst.plan_amount)}/mes</div>
                     </td>
                     <td className="px-4 py-3">
-                      <StateBadge state={inst.state_payout ?? "inactivo"} />
+                      <StateBadge state={computePayStatus(inst.last_payout_date)} />
                     </td>
                     <td className="px-4 py-3">
                       <span className={isExpired(inst.expiration_date) ? "text-red-500 font-semibold" : "text-gray-600"}>
