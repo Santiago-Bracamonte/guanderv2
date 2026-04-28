@@ -3,6 +3,7 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RoomOutlinedIcon from '@mui/icons-material/RoomOutlined';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
@@ -57,6 +58,22 @@ const benefits = [
 export default function ComoAdherirse() {
   return (
     <Box sx={{ bgcolor: '#0f1035', minHeight: '100vh' }}>
+      {/* Back button */}
+      <Container maxWidth="md" sx={{ pt: { xs: 4, md: 6 } }}>
+        <Button
+          href="/"
+          startIcon={<ArrowBackIcon />}
+          sx={{
+            color: '#43D696',
+            textTransform: 'none',
+            fontWeight: 600,
+            pl: 0,
+            '&:hover': { color: 'white', background: 'transparent' },
+          }}
+        >
+          Volver al inicio
+        </Button>
+      </Container>
       {/* Hero */}
       <Box sx={{ bgcolor: '#1a1b3c', py: { xs: 8, md: 12 }, textAlign: 'center' }}>
         <Container maxWidth="md">

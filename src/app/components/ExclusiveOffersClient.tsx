@@ -240,7 +240,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
               <Pagination
                 count={totalPages}
                 page={page}
-                onChange={(_, v) => { setPage(v); sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                onChange={(_, v) => { setPage(v); }}
                 color="primary"
                 shape="rounded"
                 showFirstButton

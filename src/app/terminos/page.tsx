@@ -3,6 +3,8 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import MuiLink from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
+import Button from '@mui/material/Button';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 export const metadata = {
   title: 'Términos y condiciones | Guander',
@@ -55,6 +57,20 @@ export default function TerminosPage() {
   return (
     <Box sx={{ bgcolor: '#0f1035', minHeight: '100vh' }}>
       <Container maxWidth="md" sx={{ py: { xs: 8, md: 12 } }}>
+        <Button
+          href="/"
+          startIcon={<ArrowBackIcon />}
+          sx={{
+            color: '#43D696',
+            textTransform: 'none',
+            fontWeight: 600,
+            mb: 4,
+            pl: 0,
+            '&:hover': { color: 'white', background: 'transparent' },
+          }}
+        >
+          Volver al inicio
+        </Button>
         <Typography variant="h3" sx={{ color: 'white', fontWeight: 900, mb: 1 }}>
           Términos y condiciones
         </Typography>

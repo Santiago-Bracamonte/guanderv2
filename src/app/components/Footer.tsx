@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import MuiLink from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
 import Image from 'next/image';
+import NextLink from 'next/link';
 
 const legalLinks = [
   { label: "Términos y condiciones", href: "/terminos" },
@@ -70,6 +71,7 @@ export default function Footer() {
               {legalLinks.map((link) => (
                 <Box component="li" key={link.label}>
                   <MuiLink
+                    component={NextLink}
                     href={link.href}
                     underline="hover"
                     sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem', '&:hover': { color: '#b9e7d0' }, transition: 'color 0.2s' }}
@@ -90,6 +92,7 @@ export default function Footer() {
               {professionalLinks.map((link) => (
                 <Box component="li" key={link.label}>
                   <MuiLink
+                    component={NextLink}
                     href={link.href}
                     underline="hover"
                     sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem', '&:hover': { color: '#b9e7d0' }, transition: 'color 0.2s' }}
