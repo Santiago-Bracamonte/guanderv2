@@ -11,6 +11,7 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import Button from '@mui/material/Button';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import NextLink from 'next/link';
 
 const faqs = [
   {
@@ -162,7 +163,7 @@ export default function FaqPage() {
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.55)' }}>
             Escribinos directamente desde nuestro{' '}
-            <MuiLink href="/#contacto" sx={{ color: '#43D696', '&:hover': { color: 'white' } }}>
+            <MuiLink component={NextLink} href="/#contacto" sx={{ color: '#43D696', '&:hover': { color: 'white' } }}>
               formulario de contacto
             </MuiLink>{' '}
             y te responderemos a la brevedad.

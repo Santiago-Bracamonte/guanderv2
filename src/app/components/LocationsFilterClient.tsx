@@ -231,12 +231,19 @@ function StoresMap({
             Ver foto completa ↗
           </a>`
         : "";
+      const descId = `pd${point.id}`;
+      const descText = escapeHtml(point.description);
+      const isLong = point.description.length > 200;
+      const descHtml = `
+        <div id="${descId}" style="font-size:12px;margin-top:6px;line-height:1.6;${isLong ? 'max-height:96px;overflow:hidden;' : ''}">${descText}</div>
+        ${isLong ? `<button id="${descId}b" onclick="var d=document.getElementById('${descId}'),b=document.getElementById('${descId}b');if(d.style.maxHeight==='96px'){d.style.maxHeight='1000px';b.textContent='−';}else{d.style.maxHeight='96px';b.textContent='+';}this.blur();" style="border:1px solid #3a6148;background:transparent;cursor:pointer;color:#3a6148;font-weight:800;font-size:13px;padding:2px 8px;border-radius:999px;margin-top:4px;line-height:1.4;">+</button>` : ''}
+      `;
       marker.bindPopup(
         `<div style="min-width:190px;max-width:260px;">
           ${imageHtml}
           <div style="font-weight:800;color:#173a2d;">${escapeHtml(point.name)}</div>
           <div style="font-size:12px;color:#35584a;margin-top:4px;">${escapeHtml(point.addressLabel)}</div>
-          <div style="font-size:12px;margin-top:6px;">${escapeHtml(point.description)}</div>
+          ${descHtml}
           ${photoLinkHtml}
           <a
             href="${directionsUrl}"
