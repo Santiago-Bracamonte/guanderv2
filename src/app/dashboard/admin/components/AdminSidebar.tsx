@@ -43,11 +43,6 @@ const navItems = [
     icon: ShoppingBag,
   },
   {
-    label: "Configuración General",
-    href: "/dashboard/admin/configuracion",
-    icon: Settings,
-  },
-  {
     label: "Solicitudes de Alta",
     href: "/dashboard/admin/solicitudes",
     icon: ClipboardList,
@@ -61,6 +56,11 @@ const navItems = [
     label: "Suscripciones",
     href: "/dashboard/admin/suscripciones",
     icon: CreditCard,
+  },
+  {
+    label: "Configuración General",
+    href: "/dashboard/admin/configuracion",
+    icon: Settings,
   },
 ];
 
