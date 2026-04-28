@@ -301,5 +301,5 @@ export default async function LocalDashboard() {
     return <OnboardingRequestForm />;
   }
 
-  return <LocalDashboardClient data={data} error={null} />;
+  return <LocalDashboardClient data={data} error={null} userRole={user.role} />;
 }

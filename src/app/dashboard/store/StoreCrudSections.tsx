@@ -17,6 +17,7 @@ import {
   FormControlLabel,
   InputLabel,
   MenuItem,
+  Chip,
   Paper,
   Select,
   Stack,
@@ -29,7 +30,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { BenefitRow, ServiceRow } from "./types";
+import type { BenefitRow, CouponRow, ServiceRow } from "./types";
 
 type ServiceItem = ServiceRow & {
   description: string;
@@ -569,11 +570,10 @@ export function StorePromotionsCrudSection({ initialItems }: { initialItems: Ben
   );
 }
 
-export function StoreCouponsCrudSection() {
+export function StoreCouponsCrudSection({ activeCoupons = [] }: { activeCoupons?: CouponRow[] }) {
   const [consumptionError, setConsumptionError] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [selectedQrCode, setSelectedQrCode] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
   const [serviceOptions, setServiceOptions] = useState<CouponServiceOption[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedServiceQty, setSelectedServiceQty] = useState("1");
@@ -665,7 +665,6 @@ export function StoreCouponsCrudSection() {
   }
 
   function clearConsumptionForm() {
-    setCustomerEmail("");
     setSelectedServiceId("");
     setSelectedServiceQty("1");
     setSelectedServiceAmount("");
@@ -679,18 +678,12 @@ export function StoreCouponsCrudSection() {
   async function generateConsumptionQr() {
     setConsumptionError("");
 
-    if (!customerEmail.trim()) {
-      setConsumptionError("El email del cliente es obligatorio");
-      return;
-    }
-
     if (consumptionItems.length === 0) {
       setConsumptionError("Agrega al menos un servicio antes de generar el QR");
       return;
     }
 
     const payload = {
-      customerEmail: customerEmail.trim(),
       items: consumptionItems.map((item) => ({
         idProfessional: item.idProfessional,
         quantity: item.quantity,
@@ -776,10 +769,10 @@ export function StoreCouponsCrudSection() {
       <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
         <CardContent>
           <Typography variant="h6" color="#173a2d">
-            Generar QR de consumo
+            Generar Consumo
           </Typography>
           <Typography variant="body2" sx={{ mt: 0.5 }}>
-            Agrega servicios del local, define cantidades y monto por item, y genera un QR asociado al cliente por email.
+            Agrega servicios del local, define cantidades y monto por item, y genera el codigo de consumo.
           </Typography>
 
           {consumptionError && (
@@ -788,15 +781,24 @@ export function StoreCouponsCrudSection() {
             </Alert>
           )}
 
+          {activeCoupons.length > 0 && (
+            <Paper variant="outlined" sx={{ mt: 2, p: 1.5, borderColor: "#d6e4da", bgcolor: "#f8fcf9" }}>
+              <Typography variant="caption" sx={{ color: "#173a2d", fontWeight: 700, display: "block", mb: 0.6 }}>
+                Cupones de descuento del local:
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {activeCoupons.filter((c) => c.state === 1).length === 0 ? (
+                  <Typography variant="caption" sx={{ color: "#5a7368" }}>Sin cupones activos</Typography>
+                ) : (
+                  activeCoupons.filter((c) => c.state === 1).map((coupon) => (
+                    <Chip key={coupon.id_coupon} label={coupon.name} size="small" sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
+                  ))
+                )}
+              </Stack>
+            </Paper>
+          )}
+
           <Box sx={{ mt: 2, display: "grid", gap: 1.2, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" } }}>
-            <TextField
-              required
-              label="Email del cliente"
-              placeholder="cliente@email.com"
-              size="small"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-            />
             <FormControl size="small" fullWidth>
               <InputLabel id="consumption-service-label">Servicio</InputLabel>
               <Select
@@ -933,7 +935,7 @@ export function StoreCouponsCrudSection() {
             {selectedQrCode && <Typography variant="body2">Codigo de consumo: {selectedQrCode}</Typography>}
             {customerSummary && (
               <Typography variant="caption" sx={{ color: "#4b675b" }}>
-                Cliente asociado al consumo: {customerSummary.name} ({customerSummary.email})
+                Cliente asociado al consumo: {customerSummary.name}
               </Typography>
             )}
           </Paper>

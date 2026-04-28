@@ -91,8 +91,8 @@ const navItems: Array<{ id: DashboardSection; label: string; icon: React.ReactNo
   { id: "dashboard", label: "Dashboard", icon: <DashboardRoundedIcon /> },
   { id: "suscripcion", label: "Mi Suscripcion", icon: <WorkspacePremiumRoundedIcon /> },
   { id: "servicios", label: "Mis Servicios", icon: <MedicalServicesRoundedIcon /> },
-  { id: "promociones", label: "Mis Promociones", icon: <CampaignRoundedIcon /> },
-  { id: "cupones", label: "Generar QR", icon: <ConfirmationNumberRoundedIcon /> },
+  { id: "promociones", label: "Mis Cupones", icon: <CampaignRoundedIcon /> },
+  { id: "cupones", label: "Generar Consumo", icon: <ConfirmationNumberRoundedIcon /> },
   { id: "reseñas", label: "Reseñas", icon: <ReviewsRoundedIcon /> },
   { id: "notificaciones", label: "Notificaciones", icon: <NotificationsActiveRoundedIcon /> },
 ];
@@ -202,7 +202,7 @@ function PanelCard({ title, subtitle, value }: { title: string; subtitle?: strin
   );
 }
 
-function DashboardOverview({ data }: { data: DashboardData }) {
+function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?: string }) {
   const avgStars = data.avgStoreRating > 0 ? data.avgStoreRating.toFixed(1) : data.store.stars.toFixed(1);
 
   return (
@@ -219,7 +219,7 @@ function DashboardOverview({ data }: { data: DashboardData }) {
           <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" gap={2}>
             <Box>
               <Typography variant="overline" sx={{ color: "rgba(255,255,255,0.72)", letterSpacing: "0.14em" }}>
-                PANEL LOCAL GUANDER
+                {userRole === "professional" ? "PANEL PROFESIONAL GUANDER" : "PANEL LOCAL GUANDER"}
               </Typography>
               <Typography variant="h5" sx={{ mt: 0.4 }}>
                 {data.store.name}
@@ -329,8 +329,7 @@ function PromotionsSection({ data }: { data: DashboardData }) {
 }
 
 function CouponsSection({ data }: { data: DashboardData }) {
-  void data;
-  return <StoreCouponsCrudSection />;
+  return <StoreCouponsCrudSection activeCoupons={data.coupons} />;
 }
 
 function ReviewsSection({ data }: { data: DashboardData }) {
@@ -349,6 +348,7 @@ function ReviewsSection({ data }: { data: DashboardData }) {
   const [openReplyId, setOpenReplyId] = useState<number | null>(null);
   const [reviewSearch, setReviewSearch] = useState("");
   const [reviewSort, setReviewSort] = useState<"recientes" | "mas_valorado" | "menos_valorado">("recientes");
+  const [closedReviews, setClosedReviews] = useState<Set<number>>(new Set());
 
   const filteredSortedReviews = useMemo(() => {
     const term = reviewSearch.trim().toLowerCase();
@@ -491,105 +491,131 @@ function ReviewsSection({ data }: { data: DashboardData }) {
               {reviewSearch.trim() ? "No se encontraron reseñas con ese criterio." : "Aun no hay reseñas registradas."}
             </Typography>
           )}
-          {paginatedReviews.map((review) => (
+          {paginatedReviews.map((review) => {
+            const isClosed = closedReviews.has(review.id_comment);
+            return (
             <Paper key={review.id_comment} variant="outlined" sx={{ borderColor: "#e0ece4", p: 1.5, borderRadius: 2, bgcolor: "#f8fcf9" }}>
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1}>
                 <Box>
                   <Typography variant="body2" fontWeight={700} color="#173a2d">
                     {review.customer_name} {review.customer_last_name}
                   </Typography>
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    {review.body}
-                  </Typography>
                 </Box>
-                <Chip icon={<StarRoundedIcon />} label={`${review.stars}/5`} size="small" sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
-              </Stack>
-
-              <Stack spacing={1} sx={{ mt: 1.2, pl: { xs: 0, sm: 1.5 }, borderLeft: { xs: "none", sm: "2px solid #dce9e0" } }}>
-                {(repliesByComment[review.id_comment] ?? []).map((reply) => (
-                  <Paper key={reply.id_comment_reply} variant="outlined" sx={{ p: 1, borderColor: "#dbe8df", bgcolor: "#fcfefd" }}>
-                    <Typography variant="caption" sx={{ color: "#1f4b3b", fontWeight: 700 }}>
-                      {reply.responder_name}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.3 }}>
-                      {reply.body}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: "#5a7368", display: "block", mt: 0.4 }}>
-                      {when(reply.date)}
-                    </Typography>
-                  </Paper>
-                ))}
-
-                {/* Toggle responder */}
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ReplyRoundedIcon />}
-                  endIcon={
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Chip icon={<StarRoundedIcon />} label={`${review.stars}/5`} size="small" sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
+                  <IconButton
+                    size="small"
+                    onClick={() => setClosedReviews((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(review.id_comment)) next.delete(review.id_comment);
+                      else next.add(review.id_comment);
+                      return next;
+                    })}
+                    sx={{ color: "#5a7368" }}
+                  >
                     <KeyboardArrowDownRoundedIcon
                       sx={{
                         transition: "transform 0.25s",
-                        transform: openReplyId === review.id_comment ? "rotate(180deg)" : "rotate(0deg)",
+                        transform: isClosed ? "rotate(0deg)" : "rotate(180deg)",
+                        fontSize: 18,
                       }}
                     />
-                  }
-                  onClick={() =>
-                    setOpenReplyId((prev) =>
-                      prev === review.id_comment ? null : review.id_comment,
-                    )
-                  }
-                  sx={{
-                    alignSelf: "flex-start",
-                    color: "#1f4b3b",
-                    borderColor: "rgba(31,75,59,0.35)",
-                    fontWeight: 700,
-                    fontSize: "0.75rem",
-                    "&:hover": { borderColor: "#1f4b3b", bgcolor: "rgba(31,75,59,0.05)" },
-                  }}
-                >
-                  {openReplyId === review.id_comment ? "Cerrar" : "Responder"}
-                </Button>
-
-                <Collapse in={openReplyId === review.id_comment} unmountOnExit>
-                  <Stack spacing={1} sx={{ mt: 0.5 }}>
-                    <TextField
-                      size="small"
-                      multiline
-                      minRows={2}
-                      label="Responder reseña"
-                      value={draftReplyByComment[review.id_comment] ?? ""}
-                      onChange={(e) =>
-                        setDraftReplyByComment((prev) => ({
-                          ...prev,
-                          [review.id_comment]: e.target.value,
-                        }))
-                      }
-                    />
-                    <Stack direction="row" justifyContent="flex-end">
-                      <Button
-                        size="small"
-                        variant="contained"
-                        sx={{ bgcolor: "#1f4b3b" }}
-                        onClick={() => void handleReply(review.id_comment)}
-                        disabled={sendingCommentId === review.id_comment}
-                      >
-                        {sendingCommentId === review.id_comment ? "Enviando..." : "Enviar respuesta"}
-                      </Button>
-                    </Stack>
-                    {feedbackByComment[review.id_comment] && (
-                      <Alert severity={feedbackByComment[review.id_comment].type} sx={{ py: 0 }}>
-                        {feedbackByComment[review.id_comment].message}
-                      </Alert>
-                    )}
-                  </Stack>
-                </Collapse>
+                  </IconButton>
+                </Stack>
               </Stack>
+
+              <Collapse in={!isClosed} unmountOnExit>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  {review.body}
+                </Typography>
+
+                <Stack spacing={1} sx={{ mt: 1.2, pl: { xs: 0, sm: 1.5 }, borderLeft: { xs: "none", sm: "2px solid #dce9e0" } }}>
+                  {(repliesByComment[review.id_comment] ?? []).map((reply) => (
+                    <Paper key={reply.id_comment_reply} variant="outlined" sx={{ p: 1, borderColor: "#dbe8df", bgcolor: "#fcfefd" }}>
+                      <Typography variant="caption" sx={{ color: "#1f4b3b", fontWeight: 700 }}>
+                        {reply.responder_name}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 0.3 }}>
+                        {reply.body}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#5a7368", display: "block", mt: 0.4 }}>
+                        {when(reply.date)}
+                      </Typography>
+                    </Paper>
+                  ))}
+
+                  {/* Toggle responder */}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ReplyRoundedIcon />}
+                    endIcon={
+                      <KeyboardArrowDownRoundedIcon
+                        sx={{
+                          transition: "transform 0.25s",
+                          transform: openReplyId === review.id_comment ? "rotate(180deg)" : "rotate(0deg)",
+                        }}
+                      />
+                    }
+                    onClick={() =>
+                      setOpenReplyId((prev) =>
+                        prev === review.id_comment ? null : review.id_comment,
+                      )
+                    }
+                    sx={{
+                      alignSelf: "flex-start",
+                      color: "#1f4b3b",
+                      borderColor: "rgba(31,75,59,0.35)",
+                      fontWeight: 700,
+                      fontSize: "0.75rem",
+                      "&:hover": { borderColor: "#1f4b3b", bgcolor: "rgba(31,75,59,0.05)" },
+                    }}
+                  >
+                    {openReplyId === review.id_comment ? "Cerrar" : "Responder"}
+                  </Button>
+
+                  <Collapse in={openReplyId === review.id_comment} unmountOnExit>
+                    <Stack spacing={1} sx={{ mt: 0.5 }}>
+                      <TextField
+                        size="small"
+                        multiline
+                        minRows={2}
+                        label="Responder reseña"
+                        value={draftReplyByComment[review.id_comment] ?? ""}
+                        onChange={(e) =>
+                          setDraftReplyByComment((prev) => ({
+                            ...prev,
+                            [review.id_comment]: e.target.value,
+                          }))
+                        }
+                      />
+                      <Stack direction="row" justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="contained"
+                          sx={{ bgcolor: "#1f4b3b" }}
+                          onClick={() => void handleReply(review.id_comment)}
+                          disabled={sendingCommentId === review.id_comment}
+                        >
+                          {sendingCommentId === review.id_comment ? "Enviando..." : "Enviar respuesta"}
+                        </Button>
+                      </Stack>
+                      {feedbackByComment[review.id_comment] && (
+                        <Alert severity={feedbackByComment[review.id_comment].type} sx={{ py: 0 }}>
+                          {feedbackByComment[review.id_comment].message}
+                        </Alert>
+                      )}
+                    </Stack>
+                  </Collapse>
+                </Stack>
+              </Collapse>
 
               <Typography variant="caption" sx={{ mt: 1, display: "block" }}>
                 {when(review.date)}
               </Typography>
             </Paper>
-          ))}
+            );
+          })}
         </Stack>
 
         {filteredSortedReviews.length > PAGE_SIZE && (
@@ -1127,9 +1153,9 @@ function sectionTitle(section: DashboardSection): string {
     case "servicios":
       return "Mis Servicios";
     case "promociones":
-      return "Mis Promociones";
+      return "Mis Cupones";
     case "cupones":
-      return "Generar QR";
+      return "Generar Consumo";
     case "reseñas":
       return "Reseñas";
     case "notificaciones":
@@ -1139,10 +1165,10 @@ function sectionTitle(section: DashboardSection): string {
   }
 }
 
-function renderSection(section: DashboardSection, data: DashboardData) {
+function renderSection(section: DashboardSection, data: DashboardData, userRole?: string) {
   switch (section) {
     case "dashboard":
-      return <DashboardOverview data={data} />;
+      return <DashboardOverview data={data} userRole={userRole} />;
     case "suscripcion":
       return <SubscriptionSection data={data} />;
     case "servicios":
@@ -1234,7 +1260,7 @@ function SidebarContent({
   );
 }
 
-export default function LocalDashboardClient({ data, error }: { data: DashboardData | null; error: string | null }) {
+export default function LocalDashboardClient({ data, error, userRole }: { data: DashboardData | null; error: string | null; userRole?: string }) {
   const [selectedSection, setSelectedSection] = useState<DashboardSection>("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -1360,7 +1386,7 @@ export default function LocalDashboardClient({ data, error }: { data: DashboardD
             </Stack>
           </Paper>
 
-          {renderSection(selectedSection, data)}
+          {renderSection(selectedSection, data, userRole)}
         </Box>
       </Box>
     </ThemeProvider>

@@ -51,15 +51,6 @@ export async function POST(request: NextRequest) {
   const customerEmail = normalizeEmail(body.customerEmail);
   const items = Array.isArray(body.items) ? body.items : [];
 
-  if (!customerEmail) {
-    return NextResponse.json({ error: "El email del cliente es obligatorio" }, { status: 400 });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(customerEmail)) {
-    return NextResponse.json({ error: "Email de cliente invalido" }, { status: 400 });
-  }
-
   if (items.length === 0) {
     return NextResponse.json(
       { error: "Debes agregar al menos un servicio al consumo" },
