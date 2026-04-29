@@ -3,13 +3,9 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import ShieldIcon from '@mui/icons-material/Shield';
 import StarIcon from '@mui/icons-material/Star';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import BoltIcon from '@mui/icons-material/Bolt';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { queryD1 } from '@/lib/cloudflare-d1';
 
@@ -34,10 +30,10 @@ function parseBenefits(raw: string): BenefitItem[] {
 }
 
 const planVisuals = [
-  { icon: <ShieldIcon />, color: '#166534', popular: false },
-  { icon: <StarIcon />, color: '#15803d', popular: true },
-  { icon: <RocketLaunchIcon />, color: '#059669', popular: false },
-  { icon: <BoltIcon />, color: '#047857', popular: false },
+  { color: '#166534', popular: false },
+  { color: '#15803d', popular: true },
+  { color: '#059669', popular: false },
+  { color: '#047857', popular: false },
 ] as const;
 
 function formatAmount(amount: number): string {
@@ -89,33 +85,16 @@ export default async function SubscriptionPlans() {
             return (
               <Box
                 key={plan.id_subscription}
-                sx={{ position: 'relative', pt: visual.popular ? '14px' : 0 }}
+                sx={{ position: 'relative' }}
               >
-                {visual.popular && (
-                  <Chip
-                    icon={<StarIcon sx={{ fontSize: '14px !important' }} />}
-                    label="MÁS POPULAR"
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      bgcolor: '#166534',
-                      color: 'white',
-                      fontWeight: 800,
-                      letterSpacing: '0.08em',
-                      px: 1,
-                      zIndex: 1,
-                    }}
-                  />
-                )}
                 <Card
                   variant="outlined"
                   sx={{
                     display: 'flex',
                     flexDirection: 'column',
                     position: 'relative',
+                    overflow: 'visible',
+                    mt: visual.popular ? 2 : 0,
                     border: '2px solid',
                     borderColor: visual.popular ? '#15803d' : 'rgba(22,101,52,0.16)',
                     boxShadow: visual.popular
@@ -128,6 +107,25 @@ export default async function SubscriptionPlans() {
                     },
                   }}
                 >
+                  {visual.popular && (
+                    <Chip
+                      icon={<StarIcon sx={{ fontSize: '14px !important' }} />}
+                      label="MÁS POPULAR"
+                      size="small"
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: '50%',
+                        transform: 'translateX(-50%) translateY(-50%)',
+                        bgcolor: '#166534',
+                        color: 'white',
+                        fontWeight: 800,
+                        letterSpacing: '0.08em',
+                        px: 1,
+                        zIndex: 1,
+                      }}
+                    />
+                  )}
 
                 <CardContent sx={{ p: 3.5, '&:last-child': { pb: 3.5 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <Box sx={{ textAlign: 'center', mb: 3 }}>
@@ -171,23 +169,7 @@ export default async function SubscriptionPlans() {
                     </Box>
                   )}
 
-                  <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid', borderColor: 'rgba(22,101,52,0.12)' }}>
-                    <Button
-                      variant={visual.popular ? 'contained' : 'outlined'}
-                      fullWidth
-                      size="large"
-                      startIcon={visual.icon}
-                      sx={{
-                        ...(visual.popular
-                          ? {}
-                          : { borderColor: visual.color, color: visual.color, '&:hover': { borderColor: visual.color, bgcolor: `${visual.color}0a` } }),
-                        bgcolor: visual.popular ? visual.color : undefined,
-                        '&:hover': visual.popular ? { bgcolor: visual.color, opacity: 0.9 } : undefined,
-                      }}
-                    >
-                      Elegir {plan.name}
-                    </Button>
-                  </Box>
+
                 </CardContent>
               </Card>
             </Box>
