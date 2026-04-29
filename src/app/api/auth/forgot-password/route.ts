@@ -89,8 +89,9 @@ export async function POST(request: Request) {
       </div>
     `;
 
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
     const { error } = await resend.emails.send({
-      from: 'Guander <onboarding@resend.dev>',
+      from: `Guander <${fromEmail}>`,
       to: user.email,
       subject: 'Restablecer contraseña — Guander',
       html: htmlBody,
