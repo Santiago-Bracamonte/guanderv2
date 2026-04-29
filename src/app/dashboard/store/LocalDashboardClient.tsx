@@ -961,6 +961,19 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
   const expiringSOON = daysLeft !== null && daysLeft > 0 && daysLeft <= 7;
 
   const currentPlanBenefits = parsePlanBenefits(data.store.plan_benefits);
+  const planLimits = getPlanLimits(data.store.plan_name);
+  const computedBenefits: PlanBenefitRow[] = [
+    {
+      benefit: planLimits.maxPhotos === 1 ? "1 foto de perfil" : `Hasta ${planLimits.maxPhotos} fotos`,
+      detail: "En tu perfil",
+    },
+    {
+      benefit: planLimits.maxServices === -1 ? "Servicios ilimitados" : `Hasta ${planLimits.maxServices} servicios`,
+      detail: "En tu perfil",
+    },
+  ];
+  // Merge: keep computed rows for fotos/servicios (not stored in DB), then DB rows
+  const allPlanBenefits = [...computedBenefits, ...currentPlanBenefits];
 
   async function handleUpgrade(planId: number, planName: string, planDescription: string, amount: number) {
     setUpgradingPlanId(planId);
@@ -1081,14 +1094,14 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {currentPlanBenefits.length === 0 && (
+                {allPlanBenefits.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={2}>
                       No hay beneficios configurados para este plan en la base de datos.
                     </TableCell>
                   </TableRow>
                 )}
-                {currentPlanBenefits.map((item, index) => (
+                {allPlanBenefits.map((item, index) => (
                   <TableRow key={`${item.benefit}-${index}`}>
                     <TableCell>{item.benefit}</TableCell>
                     <TableCell>{item.detail}</TableCell>
