@@ -10,6 +10,7 @@ import ShieldIcon from '@mui/icons-material/Shield';
 import StarIcon from '@mui/icons-material/Star';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import BoltIcon from '@mui/icons-material/Bolt';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { queryD1 } from '@/lib/cloudflare-d1';
 
 type Subscription = {
@@ -18,7 +19,19 @@ type Subscription = {
   description: string;
   state: string;
   amount: number;
+  plan_benefits: string;
 };
+
+type BenefitItem = { benefit: string; detail?: string };
+
+function parseBenefits(raw: string): BenefitItem[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as BenefitItem[];
+  } catch { /* fall through */ }
+  return raw.split(/\n/).map((b) => ({ benefit: b.trim() })).filter((b) => b.benefit);
+}
 
 const planVisuals = [
   { icon: <ShieldIcon />, color: '#166534', popular: false },
@@ -36,7 +49,7 @@ export default async function SubscriptionPlans() {
 
   try {
     subscriptions = await queryD1<Subscription>(
-      "SELECT id_subscription, name, description, state, amount FROM subscription WHERE state = 'activo' ORDER BY amount ASC"
+      "SELECT id_subscription, name, description, plan_benefits, state, amount FROM subscription WHERE state = 'activo' ORDER BY amount ASC"
     );
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
@@ -140,6 +153,23 @@ export default async function SubscriptionPlans() {
                       {plan.description}
                     </Typography>
                   </Box>
+
+                  {/* Benefits list */}
+                  {parseBenefits(plan.plan_benefits).length > 0 && (
+                    <Box sx={{ mb: 2 }}>
+                      {parseBenefits(plan.plan_benefits).map((b, i) => (
+                        <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
+                          <CheckCircleOutlineIcon sx={{ fontSize: 17, color: visual.color, mt: '2px', flexShrink: 0 }} />
+                          <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.5 }}>
+                            <strong>{b.benefit}</strong>
+                            {b.detail && (
+                              <Typography component="span" variant="body2" color="text.secondary"> — {b.detail}</Typography>
+                            )}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
 
                   <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid', borderColor: 'rgba(22,101,52,0.12)' }}>
                     <Button

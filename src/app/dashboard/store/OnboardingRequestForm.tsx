@@ -194,9 +194,12 @@ const SCHEDULE_PRESETS = [
   "24 horas",
 ];
 
+type PendingPlan = { id: number; name: string; amount: number };
+
 export default function OnboardingRequestForm() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [pendingPlan, setPendingPlan] = useState<PendingPlan | null>(null);
   const [existingRequest, setExistingRequest] = useState<{
     id_request: number;
     status: string;
@@ -224,6 +227,14 @@ export default function OnboardingRequestForm() {
   const [imageUrl, setImageUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+
+  // Load pending plan from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("guander_pending_plan");
+      if (raw) setPendingPlan(JSON.parse(raw) as PendingPlan);
+    } catch { /* ignore */ }
+  }, []);
 
   // Check if user already has a pending request
   useEffect(() => {
@@ -330,6 +341,7 @@ export default function OnboardingRequestForm() {
           schedule_weekend: scheduleWeekend,
           schedule_sunday: scheduleSunday,
           image_url: imageUrl || undefined,
+          fk_subscription_id: pendingPlan?.id ?? undefined,
         }),
       });
       const data = await res.json() as { success?: boolean; error?: string };
@@ -448,6 +460,25 @@ export default function OnboardingRequestForm() {
         Completá el formulario con tus datos para que el equipo de Guander cree tu perfil en la
         plataforma. Te avisaremos por email cuando esté listo.
       </Typography>
+
+      {pendingPlan ? (
+        <Alert
+          severity="info"
+          sx={{ mb: 3, borderRadius: 2, "& .MuiAlert-message": { width: "100%" } }}
+          icon={false}
+        >
+          <Typography variant="subtitle2" fontWeight={700} color="#0c4a6e">
+            Plan seleccionado: {pendingPlan.name} — ${pendingPlan.amount.toLocaleString("es-AR")}/mes
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            El pago se coordina con el equipo de Guander tras la aprobación de tu cuenta.
+          </Typography>
+        </Alert>
+      ) : (
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+          No seleccionaste un plan durante el registro. El administrador te asignará uno al aprobar tu solicitud.
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Stack spacing={3}>

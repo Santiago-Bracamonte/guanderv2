@@ -218,9 +218,38 @@ function PanelCard({ title, subtitle, value }: { title: string; subtitle?: strin
 
 function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?: string }) {
   const avgStars = data.avgStoreRating > 0 ? data.avgStoreRating.toFixed(1) : data.store.stars.toFixed(1);
+  const payoutPending = data.store.payout_state === "pendiente";
 
   return (
     <Stack spacing={2.2}>
+      {payoutPending && (
+        <Card
+          elevation={0}
+          sx={{
+            border: "1.5px solid #f59e0b",
+            background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+            borderRadius: 3,
+          }}
+        >
+          <CardContent sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+            <Box sx={{ fontSize: 28, lineHeight: 1 }}>⚠️</Box>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={800} color="#92400e">
+                Tu suscripción está pendiente de pago
+              </Typography>
+              <Typography variant="body2" color="#78350f" sx={{ mt: 0.4 }}>
+                Plan: <strong>{data.store.plan_name ?? "Sin asignar"}</strong>
+                {data.store.plan_amount != null && (
+                  <> — <strong>{money(data.store.plan_amount)}/mes</strong></>
+                )}
+              </Typography>
+              <Typography variant="body2" color="#78350f" sx={{ mt: 0.6 }}>
+                El equipo de Guander se comunicará con vos para coordinar el cobro. Podés ver los detalles en la pestaña <strong>Mi Suscripción</strong>.
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
       <Card
         elevation={0}
         sx={{
@@ -325,7 +354,14 @@ function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?:
 
             <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap" }}>
               <Chip label={`Plan ${data.store.plan_state ?? "Desconocido"}`} sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
-              <Chip label={`Payout ${data.store.payout_state ?? "Desconocido"}`} sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
+              <Chip
+                label={`Pago ${data.store.payout_state ?? "Desconocido"}`}
+                sx={{
+                  bgcolor: payoutPending ? "#fef3c7" : "#deebdf",
+                  color: payoutPending ? "#92400e" : "#173a2d",
+                  fontWeight: payoutPending ? 700 : 400,
+                }}
+              />
             </Stack>
           </CardContent>
         </Card>
@@ -889,6 +925,7 @@ function NotificationsSection({ data }: { data: DashboardData }) {
 }
 
 function SubscriptionSection({ data }: { data: DashboardData }) {
+  const payoutPending = data.store.payout_state === "pendiente";
   const [recText, setRecText] = useState("");
   const [recEmail, setRecEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -976,7 +1013,14 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
 
           <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
             <Chip label={`Estado plan: ${data.store.plan_state ?? "Desconocido"}`} sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
-            <Chip label={`Estado payout: ${data.store.payout_state ?? "Desconocido"}`} sx={{ bgcolor: "#deebdf", color: "#173a2d" }} />
+            <Chip
+              label={`Estado pago: ${data.store.payout_state ?? "Desconocido"}`}
+              sx={{
+                bgcolor: payoutPending ? "#fef3c7" : "#deebdf",
+                color: payoutPending ? "#92400e" : "#173a2d",
+                fontWeight: payoutPending ? 700 : 400,
+              }}
+            />
           </Stack>
 
           <Paper variant="outlined" sx={{ mt: 2.2, borderColor: "#d6e4da", borderRadius: 2.5, overflow: "hidden" }}>
@@ -1325,6 +1369,10 @@ type ProfileStore = {
   schedule_week: string | null;
   schedule_weekend: string | null;
   schedule_sunday: string | null;
+  social_web: string | null;
+  social_instagram: string | null;
+  social_twitter: string | null;
+  social_whatsapp: string | null;
 };
 
 function StoreProfileSection({ data }: { data: DashboardData }) {
@@ -1338,6 +1386,10 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
     schedule_week: "",
     schedule_weekend: "",
     schedule_sunday: "",
+    social_web: null,
+    social_instagram: null,
+    social_twitter: null,
+    social_whatsapp: null,
   });
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1370,6 +1422,10 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
             schedule_week: s.schedule_week ?? "",
             schedule_weekend: s.schedule_weekend ?? "",
             schedule_sunday: s.schedule_sunday ?? "",
+            social_web: s.social_web ?? null,
+            social_instagram: s.social_instagram ?? null,
+            social_twitter: s.social_twitter ?? null,
+            social_whatsapp: s.social_whatsapp ?? null,
           });
           setCategories(json.data.categories);
         }
@@ -1698,6 +1754,89 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, schedule_sunday: e.target.value }))
                   }
+                />
+              </Box>
+
+              {/* Social media */}
+              <Typography
+                variant="subtitle2"
+                sx={{ mt: 2.5, mb: 1.2, color: "#173a2d" }}
+              >
+                Redes sociales
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 1.5,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(2, minmax(0, 1fr))",
+                  },
+                }}
+              >
+                <TextField
+                  label="Sitio web"
+                  size="small"
+                  placeholder="https://www.misitioweb.com"
+                  value={form.social_web ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, social_web: e.target.value || null }))
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <span style={{ fontSize: 16 }}>🌐</span>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  label="Instagram"
+                  size="small"
+                  placeholder="@tu_usuario"
+                  value={form.social_instagram ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, social_instagram: e.target.value || null }))
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <span style={{ fontSize: 16 }}>📸</span>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  label="Twitter / X"
+                  size="small"
+                  placeholder="@tu_usuario"
+                  value={form.social_twitter ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, social_twitter: e.target.value || null }))
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <span style={{ fontSize: 16 }}>𝕏</span>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <TextField
+                  label="WhatsApp"
+                  size="small"
+                  placeholder="+54 9 11 1234-5678"
+                  value={form.social_whatsapp ?? ""}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, social_whatsapp: e.target.value || null }))
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <span style={{ fontSize: 16 }}>💬</span>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Box>
 

@@ -126,10 +126,11 @@ export async function PATCH(request: Request) {
       schedule_week: string | null;
       schedule_weekend: string | null;
       schedule_sunday: string | null;
+      fk_subscription_id: number | null;
       status: string;
     }>(
       `SELECT id_request, fk_user, user_email, business_name, description, address, location,
-              fk_category, image_url, schedule_week, schedule_weekend, schedule_sunday, status
+              fk_category, image_url, schedule_week, schedule_weekend, schedule_sunday, fk_subscription_id, status
        FROM store_registration_requests WHERE id_request = ? LIMIT 1`,
       [id_request],
       { revalidate: false },
@@ -178,16 +179,21 @@ export async function PATCH(request: Request) {
       } catch { /* use 1 */ }
     }
 
-    // 2. Get or create store_sub (free plan)
+    // 2. Get or create store_sub using the plan the user selected (or cheapest if none)
     let fk_store_sub_id: number = 1;
     try {
-      // Find the cheapest / free subscription
-      const subPlanRows = await queryD1<{ id_subscription: number }>(
-        `SELECT id_subscription FROM subscription ORDER BY amount ASC LIMIT 1`,
-        [],
-        { revalidate: false },
-      );
-      const subPlanId = subPlanRows[0]?.id_subscription ?? 1;
+      // Use the plan chosen by the user, or fall back to cheapest
+      let subPlanId: number;
+      if (req.fk_subscription_id) {
+        subPlanId = req.fk_subscription_id;
+      } else {
+        const subPlanRows = await queryD1<{ id_subscription: number }>(
+          `SELECT id_subscription FROM subscription ORDER BY amount ASC LIMIT 1`,
+          [],
+          { revalidate: false },
+        );
+        subPlanId = subPlanRows[0]?.id_subscription ?? 1;
+      }
 
       const now = new Date();
       const expiry = new Date(now);

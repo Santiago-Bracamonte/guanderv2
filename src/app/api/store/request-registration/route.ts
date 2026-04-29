@@ -26,6 +26,8 @@ async function ensureRequestsTable() {
         schedule_sunday   TEXT,
         -- Imagen
         image_url         TEXT,
+        -- Plan elegido por el usuario
+        fk_subscription_id INTEGER,
         -- Estado del pedido
         status            TEXT NOT NULL DEFAULT 'pending',
         notes             TEXT,
@@ -36,6 +38,16 @@ async function ensureRequestsTable() {
     );
   } catch {
     /* table already exists */
+  }
+  // Add fk_subscription_id column if it doesn't exist (for existing tables)
+  try {
+    await queryD1(
+      `ALTER TABLE store_registration_requests ADD COLUMN fk_subscription_id INTEGER`,
+      [],
+      { revalidate: false },
+    );
+  } catch {
+    /* column already exists */
   }
 }
 
@@ -61,6 +73,7 @@ export async function POST(request: Request) {
     schedule_weekend?: string;
     schedule_sunday?: string;
     image_url?: string;
+    fk_subscription_id?: number;
   };
 
   try {
@@ -111,8 +124,8 @@ export async function POST(request: Request) {
 
     await queryD1(
       `INSERT INTO store_registration_requests
-        (fk_user, user_email, business_name, description, address, location, fk_category, cuit_cuil, matricula, razon_social, schedule_week, schedule_weekend, schedule_sunday, image_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (fk_user, user_email, business_name, description, address, location, fk_category, cuit_cuil, matricula, razon_social, schedule_week, schedule_weekend, schedule_sunday, image_url, fk_subscription_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user.id,
         userEmail,
@@ -128,6 +141,7 @@ export async function POST(request: Request) {
         body.schedule_weekend?.trim() ?? "",
         body.schedule_sunday?.trim() ?? "",
         body.image_url?.trim() ?? null,
+        body.fk_subscription_id ?? null,
       ],
       { revalidate: false },
     );

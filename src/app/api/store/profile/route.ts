@@ -10,6 +10,12 @@ async function ensureImageUrlColumn() {
   } catch {
     // column already exists – ignore
   }
+  // Social media columns
+  for (const col of ["social_web", "social_instagram", "social_twitter", "social_whatsapp"]) {
+    try {
+      await queryD1(`ALTER TABLE stores ADD COLUMN ${col} TEXT`, [], { revalidate: false });
+    } catch { /* already exists */ }
+  }
 }
 
 function parseLatLng(raw: string | null | undefined): string | null {
@@ -65,12 +71,17 @@ export async function GET() {
     schedule_week: string | null;
     schedule_weekend: string | null;
     schedule_sunday: string | null;
+    social_web: string | null;
+    social_instagram: string | null;
+    social_twitter: string | null;
+    social_whatsapp: string | null;
   }>(
     `SELECT
        s.id_store, s.name, s.description, s.address, s.location, s.image_url, s.fk_category,
        sc.week    AS schedule_week,
        sc.weekend AS schedule_weekend,
-       sc.sunday  AS schedule_sunday
+       sc.sunday  AS schedule_sunday,
+       s.social_web, s.social_instagram, s.social_twitter, s.social_whatsapp
      FROM stores s
      LEFT JOIN schedule sc ON sc.id_schedule = s.fk_schedule
      WHERE s.id_store = ?
@@ -108,6 +119,10 @@ export async function PUT(request: NextRequest) {
     schedule_week?: string;
     schedule_weekend?: string;
     schedule_sunday?: string;
+    social_web?: string | null;
+    social_instagram?: string | null;
+    social_twitter?: string | null;
+    social_whatsapp?: string | null;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -162,7 +177,8 @@ export async function PUT(request: NextRequest) {
 
   await queryD1(
     `UPDATE stores
-     SET name = ?, description = ?, address = ?, location = ?, image_url = ?, fk_category = ?
+     SET name = ?, description = ?, address = ?, location = ?, image_url = ?, fk_category = ?,
+         social_web = ?, social_instagram = ?, social_twitter = ?, social_whatsapp = ?
      WHERE id_store = ?`,
     [
       nextName,
@@ -171,6 +187,10 @@ export async function PUT(request: NextRequest) {
       locationToSave,
       nextImageUrl,
       nextCategory,
+      body.social_web !== undefined ? (body.social_web?.trim() || null) : null,
+      body.social_instagram !== undefined ? (body.social_instagram?.trim() || null) : null,
+      body.social_twitter !== undefined ? (body.social_twitter?.trim() || null) : null,
+      body.social_whatsapp !== undefined ? (body.social_whatsapp?.trim() || null) : null,
       context.storeId,
     ],
     { revalidate: false },
