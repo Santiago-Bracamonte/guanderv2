@@ -116,7 +116,6 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-              gridAutoRows: '1fr',
               gap: 2.5,
               minHeight: { xs: 'unset', sm: '560px' },
               alignContent: 'start',
