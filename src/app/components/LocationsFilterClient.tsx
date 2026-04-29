@@ -540,14 +540,17 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
           />
         </Box>
 
-        <Box
-          sx={{
-            minWidth: 0,
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(2, minmax(0, 1fr))" },
-            gap: 1.5,
-          }}
-        >
+        <Box sx={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(2, minmax(0, 1fr))" },
+              gridAutoRows: "1fr",
+              gap: 1.5,
+              minHeight: { xs: "unset", md: "460px" },
+              alignContent: "start",
+            }}
+          >
           {paginatedLocations.map((location) => {
             return (
               <Card
@@ -640,11 +643,11 @@ export default function LocationsFilterClient({ locations }: LocationsFilterClie
               </Card>
             );
           })}
+          </Box>
 
           {filteredLocations.length > pageSize && (
             <Box
               sx={{
-                gridColumn: "1 / -1",
                 display: "flex",
                 justifyContent: "center",
                 pt: 0.5,

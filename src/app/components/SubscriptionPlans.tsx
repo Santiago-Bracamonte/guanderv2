@@ -3,9 +3,7 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import StarIcon from '@mui/icons-material/Star';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { queryD1 } from '@/lib/cloudflare-d1';
 
@@ -108,23 +106,27 @@ export default async function SubscriptionPlans() {
                   }}
                 >
                   {visual.popular && (
-                    <Chip
-                      icon={<StarIcon sx={{ fontSize: '14px !important' }} />}
-                      label="MÁS POPULAR"
-                      size="small"
+                    <Box
                       sx={{
                         position: 'absolute',
                         top: 0,
                         left: '50%',
                         transform: 'translateX(-50%) translateY(-50%)',
-                        bgcolor: '#166534',
-                        color: 'white',
-                        fontWeight: 800,
-                        letterSpacing: '0.08em',
-                        px: 1,
+                        bgcolor: '#15803d',
+                        color: '#fff',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.1em',
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: '999px',
+                        whiteSpace: 'nowrap',
                         zIndex: 1,
+                        boxShadow: '0 2px 8px rgba(22,101,52,0.35)',
                       }}
-                    />
+                    >
+                      ★ MÁS POPULAR
+                    </Box>
                   )}
 
                 <CardContent sx={{ p: 3.5, '&:last-child': { pb: 3.5 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
