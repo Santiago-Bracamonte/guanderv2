@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 import { queryD1 } from '@/lib/cloudflare-d1';
 
@@ -55,13 +55,12 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      console.error('RESEND_API_KEY not configured');
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    if (!gmailUser || !gmailPass) {
+      console.error('GMAIL_USER or GMAIL_APP_PASSWORD not configured');
       return NextResponse.json({ error: 'Servicio de correo no configurado' }, { status: 503 });
     }
-
-    const resend = new Resend(apiKey);
 
     const htmlBody = `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1b3c;">
@@ -89,18 +88,20 @@ export async function POST(request: Request) {
       </div>
     `;
 
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-    const { error } = await resend.emails.send({
-      from: `Guander <${fromEmail}>`,
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailPass,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `Guander <${gmailUser}>`,
       to: user.email,
       subject: 'Restablecer contraseña — Guander',
       html: htmlBody,
     });
-
-    if (error) {
-      console.error('Resend error:', error);
-      return NextResponse.json({ error: 'Error al enviar el email. Intentá de nuevo.' }, { status: 500 });
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
