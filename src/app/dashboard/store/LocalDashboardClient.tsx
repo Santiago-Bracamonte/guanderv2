@@ -54,6 +54,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import ReplyRoundedIcon from "@mui/icons-material/ReplyRounded";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import MapRoundedIcon from "@mui/icons-material/MapRounded";
+import AddPhotoAlternateRoundedIcon from "@mui/icons-material/AddPhotoAlternateRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { ThemeProvider, alpha, createTheme } from "@mui/material/styles";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -1498,6 +1500,7 @@ type ProfileStore = {
   address: string;
   location: string;
   image_url: string | null;
+  gallery_urls: string[];
   fk_category: number;
   schedule_week: string | null;
   schedule_weekend: string | null;
@@ -1516,6 +1519,7 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
     address: data.store.address,
     location: data.store.location,
     image_url: null,
+    gallery_urls: [],
     fk_category: 0,
     schedule_week: "",
     schedule_weekend: "",
@@ -1546,12 +1550,16 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
         };
         if (!cancelled && json.data) {
           const s = json.data.store;
+          const gallery: string[] = Array.isArray((s as unknown as { gallery_urls: unknown }).gallery_urls)
+            ? (s as unknown as { gallery_urls: string[] }).gallery_urls
+            : s.image_url ? [s.image_url] : [];
           setForm({
             name: s.name ?? data.store.name,
             description: s.description ?? data.store.description,
             address: s.address ?? data.store.address,
             location: s.location ?? data.store.location,
             image_url: s.image_url ?? null,
+            gallery_urls: gallery,
             fk_category: s.fk_category ?? 0,
             schedule_week: s.schedule_week ?? "",
             schedule_weekend: s.schedule_weekend ?? "",
@@ -1578,6 +1586,8 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset input so the same file can be picked again
+    e.target.value = "";
     setUploading(true);
     setError(null);
     const fd = new FormData();
@@ -1594,7 +1604,11 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
       if (!res.ok || !json.url) {
         setError(json.error ?? "No se pudo subir la imagen.");
       } else {
-        setForm((prev) => ({ ...prev, image_url: json.url! }));
+        setForm((prev) => ({
+          ...prev,
+          gallery_urls: [...prev.gallery_urls, json.url!],
+          image_url: prev.gallery_urls.length === 0 ? json.url! : prev.image_url,
+        }));
       }
     } catch {
       setError("Error de red al subir la imagen.");
@@ -1615,7 +1629,10 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
       const res = await fetch("/api/store/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          image_url: form.gallery_urls[0] ?? null,
+        }),
       });
       const json = (await res.json().catch(() => ({}))) as {
         success?: boolean;
@@ -1662,85 +1679,131 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
                 </Alert>
               )}
 
-              {/* Photo */}
-              <Box
-                sx={{ mt: 2.5, display: "flex", alignItems: "center", gap: 2 }}
-              >
-                <Box
-                  sx={{
-                    width: 96,
-                    height: 96,
-                    borderRadius: 3,
-                    border: "1px solid #d6e4da",
-                    overflow: "hidden",
-                    bgcolor: "#f3f9f5",
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {form.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={form.image_url}
-                      alt="Foto del local"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
+              {/* Photo gallery */}
+              <Box sx={{ mt: 2.5 }}>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                  <Typography variant="body2" fontWeight={700} color="#173a2d">
+                    Fotos del local
+                  </Typography>
+                  <Chip
+                    label={`${form.gallery_urls.length} / ${planLimits.maxPhotos}`}
+                    size="small"
+                    sx={{
+                      fontWeight: 700,
+                      bgcolor: form.gallery_urls.length >= planLimits.maxPhotos ? "#fef3c7" : "#deebdf",
+                      color: form.gallery_urls.length >= planLimits.maxPhotos ? "#92400e" : "#173a2d",
+                      fontSize: "0.68rem",
+                    }}
+                  />
+                </Stack>
+
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                  {form.gallery_urls.map((url, idx) => (
+                    <Box
+                      key={url + idx}
+                      sx={{ position: "relative", width: 96, height: 96, flexShrink: 0 }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Foto ${idx + 1}`}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          borderRadius: 8,
+                          border: "1px solid #d6e4da",
+                          display: "block",
+                        }}
+                      />
+                      {idx === 0 && (
+                        <Chip
+                          label="Principal"
+                          size="small"
+                          sx={{
+                            position: "absolute",
+                            bottom: 4,
+                            left: 4,
+                            fontSize: "0.58rem",
+                            height: 18,
+                            bgcolor: "rgba(31,75,59,0.85)",
+                            color: "#fff",
+                            fontWeight: 700,
+                          }}
+                        />
+                      )}
+                      <IconButton
+                        size="small"
+                        title="Eliminar foto"
+                        onClick={() =>
+                          setForm((p) => ({
+                            ...p,
+                            gallery_urls: p.gallery_urls.filter((_, i) => i !== idx),
+                            image_url: idx === 0 ? (p.gallery_urls[1] ?? null) : p.image_url,
+                          }))
+                        }
+                        sx={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          width: 22,
+                          height: 22,
+                          bgcolor: "#fff",
+                          border: "1px solid #d6e4da",
+                          "&:hover": { bgcolor: "#fee2e2", borderColor: "#fca5a5" },
+                          p: 0,
+                        }}
+                      >
+                        <CloseRoundedIcon sx={{ fontSize: 13 }} />
+                      </IconButton>
+                    </Box>
+                  ))}
+
+                  {form.gallery_urls.length < planLimits.maxPhotos && (
+                    <Box
+                      onClick={() => !uploading && fileInputRef.current?.click()}
+                      sx={{
+                        width: 96,
+                        height: 96,
+                        borderRadius: 2,
+                        border: "2px dashed #b6d4c2",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: uploading ? "default" : "pointer",
+                        bgcolor: "#f3f9f5",
+                        gap: 0.5,
+                        flexShrink: 0,
+                        transition: "background 0.15s",
+                        "&:hover": { bgcolor: uploading ? "#f3f9f5" : "#eaf3ee" },
                       }}
-                    />
-                  ) : (
-                    <StorefrontRoundedIcon
-                      sx={{ color: "#8cb8a4", fontSize: 40 }}
-                    />
+                    >
+                      {uploading ? (
+                        <CircularProgress size={22} sx={{ color: "#1f4b3b" }} />
+                      ) : (
+                        <>
+                          <AddPhotoAlternateRoundedIcon sx={{ color: "#5f9e84", fontSize: 28 }} />
+                          <Typography variant="caption" sx={{ color: "#5f9e84", fontSize: "0.62rem", fontWeight: 700 }}>
+                            Agregar
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
                   )}
                 </Box>
-                <Stack spacing={0.5}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Typography variant="body2" fontWeight={700} color="#173a2d">
-                      Foto del local
-                    </Typography>
-                    <Chip
-                      label={`Hasta ${planLimits.maxPhotos} foto${planLimits.maxPhotos !== 1 ? "s" : ""} · tu plan`}
-                      size="small"
-                      sx={{ fontWeight: 700, bgcolor: "#deebdf", color: "#173a2d", fontSize: "0.68rem" }}
-                    />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    JPG, PNG o WEBP · Máx. 10 MB
-                  </Typography>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    style={{ display: "none" }}
-                    onChange={(e) => void handleImagePick(e)}
-                  />
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={uploading}
-                    startIcon={
-                      uploading ? (
-                        <CircularProgress
-                          size={14}
-                          sx={{ color: "#1f4b3b" }}
-                        />
-                      ) : undefined
-                    }
-                    onClick={() => fileInputRef.current?.click()}
-                    sx={{
-                      alignSelf: "flex-start",
-                      borderColor: "#1f4b3b",
-                      color: "#1f4b3b",
-                      mt: 0.4,
-                    }}
-                  >
-                    {uploading ? "Subiendo…" : "Cambiar foto"}
-                  </Button>
-                </Stack>
+
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                  JPG, PNG o WEBP · Máx. 10 MB · La primera foto aparece como imagen de perfil
+                </Typography>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  style={{ display: "none" }}
+                  onChange={(e) => void handleImagePick(e)}
+                />
               </Box>
 
               {/* Main fields */}

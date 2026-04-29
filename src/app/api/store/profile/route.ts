@@ -3,15 +3,7 @@ import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 
 async function ensureImageUrlColumn() {
-  try {
-    await queryD1("ALTER TABLE stores ADD COLUMN image_url TEXT", [], {
-      revalidate: false,
-    });
-  } catch {
-    // column already exists – ignore
-  }
-  // Social media columns
-  for (const col of ["social_web", "social_instagram", "social_twitter", "social_whatsapp"]) {
+  for (const col of ["image_url", "gallery_urls", "social_web", "social_instagram", "social_twitter", "social_whatsapp"]) {
     try {
       await queryD1(`ALTER TABLE stores ADD COLUMN ${col} TEXT`, [], { revalidate: false });
     } catch { /* already exists */ }
@@ -67,6 +59,7 @@ export async function GET() {
     address: string;
     location: string;
     image_url: string | null;
+    gallery_urls: string | null;
     fk_category: number;
     schedule_week: string | null;
     schedule_weekend: string | null;
@@ -77,7 +70,7 @@ export async function GET() {
     social_whatsapp: string | null;
   }>(
     `SELECT
-       s.id_store, s.name, s.description, s.address, s.location, s.image_url, s.fk_category,
+       s.id_store, s.name, s.description, s.address, s.location, s.image_url, s.gallery_urls, s.fk_category,
        sc.week    AS schedule_week,
        sc.weekend AS schedule_weekend,
        sc.sunday  AS schedule_sunday,
@@ -95,13 +88,25 @@ export async function GET() {
     return NextResponse.json({ error: "Local no encontrado" }, { status: 404 });
   }
 
+  // Parse gallery_urls from JSON; fall back to [image_url] for backward compat
+  let parsedGallery: string[] = [];
+  if (store.gallery_urls) {
+    try { parsedGallery = JSON.parse(store.gallery_urls) as string[]; } catch { /* invalid JSON */ }
+  }
+  if (parsedGallery.length === 0 && store.image_url) {
+    parsedGallery = [store.image_url];
+  }
+
   const categories = await queryD1<{ id_category: number; name: string }>(
     "SELECT id_category, name FROM category ORDER BY name ASC",
     [],
     { revalidate: false },
   );
 
-  return NextResponse.json({ success: true, data: { store, categories } });
+  return NextResponse.json({
+    success: true,
+    data: { store: { ...store, gallery_urls: parsedGallery }, categories },
+  });
 }
 
 export async function PUT(request: NextRequest) {
@@ -115,6 +120,7 @@ export async function PUT(request: NextRequest) {
     address?: string;
     location?: string;
     image_url?: string | null;
+    gallery_urls?: string[];
     fk_category?: number;
     schedule_week?: string;
     schedule_weekend?: string;
@@ -138,10 +144,11 @@ export async function PUT(request: NextRequest) {
     address: string;
     location: string;
     image_url: string | null;
+    gallery_urls: string | null;
     fk_category: number;
     fk_schedule: number | null;
   }>(
-    `SELECT name, description, address, location, image_url, fk_category, fk_schedule
+    `SELECT name, description, address, location, image_url, gallery_urls, fk_category, fk_schedule
      FROM stores WHERE id_store = ? LIMIT 1`,
     [context.storeId],
     { revalidate: false },
@@ -156,8 +163,14 @@ export async function PUT(request: NextRequest) {
   const nextDescription = body.description ?? current.description;
   const nextAddress = (body.address ?? current.address).trim();
   const nextCategory = body.fk_category ?? current.fk_category;
-  const nextImageUrl =
-    body.image_url !== undefined ? body.image_url : current.image_url;
+
+  // Gallery: use submitted array, validate it's all strings
+  const galleryUrls: string[] = Array.isArray(body.gallery_urls)
+    ? body.gallery_urls.filter((u): u is string => typeof u === "string")
+    : [];
+  // Derive cover image from gallery[0] for backward compat
+  const nextImageUrl = galleryUrls[0] ?? (body.image_url !== undefined ? body.image_url : current.image_url);
+  const nextGalleryJson = JSON.stringify(galleryUrls);
 
   if (!nextName) {
     return NextResponse.json(
@@ -177,7 +190,8 @@ export async function PUT(request: NextRequest) {
 
   await queryD1(
     `UPDATE stores
-     SET name = ?, description = ?, address = ?, location = ?, image_url = ?, fk_category = ?,
+     SET name = ?, description = ?, address = ?, location = ?, image_url = ?, gallery_urls = ?,
+         fk_category = ?,
          social_web = ?, social_instagram = ?, social_twitter = ?, social_whatsapp = ?
      WHERE id_store = ?`,
     [
@@ -186,6 +200,7 @@ export async function PUT(request: NextRequest) {
       nextAddress,
       locationToSave,
       nextImageUrl,
+      nextGalleryJson,
       nextCategory,
       body.social_web !== undefined ? (body.social_web?.trim() || null) : null,
       body.social_instagram !== undefined ? (body.social_instagram?.trim() || null) : null,
