@@ -58,6 +58,7 @@ import { ThemeProvider, alpha, createTheme } from "@mui/material/styles";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { DashboardData } from "./types";
+import { getPlanLimits } from "@/lib/plan-limits";
 import {
   StoreCouponManagementSection,
   StoreCouponsCrudSection,
@@ -219,6 +220,7 @@ function PanelCard({ title, subtitle, value }: { title: string; subtitle?: strin
 function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?: string }) {
   const avgStars = data.avgStoreRating > 0 ? data.avgStoreRating.toFixed(1) : data.store.stars.toFixed(1);
   const payoutPending = data.store.payout_state === "pendiente";
+  const planLimits = getPlanLimits(data.store.plan_name);
 
   return (
     <Stack spacing={2.2}>
@@ -350,6 +352,19 @@ function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?:
               <Typography variant="body2" sx={{ color: "#355d4d", mt: 0.8, fontWeight: 600 }}>
                 Vence: {data.store.plan_expiration_date ? when(data.store.plan_expiration_date) : "N/A"}
               </Typography>
+              <Box sx={{ mt: 1.5, display: "grid", gap: 0.7, gridTemplateColumns: "1fr 1fr" }}>
+                {[
+                  { label: "Fotos", value: `${planLimits.maxPhotos}` },
+                  { label: "Servicios", value: planLimits.maxServices === -1 ? "Ilimitados" : String(planLimits.maxServices) },
+                  { label: "Cupones", value: String(planLimits.maxCoupons) },
+                  { label: "Notificaciones/mes", value: String(planLimits.maxNotificationsPerMonth) },
+                ].map(({ label, value }) => (
+                  <Box key={label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1, py: 0.5, bgcolor: "#fff", borderRadius: 1.5, border: "1px solid #dde9e3" }}>
+                    <Typography variant="caption" sx={{ color: "#4d6b5f", fontWeight: 600 }}>{label}</Typography>
+                    <Typography variant="caption" sx={{ color: "#1f4b3b", fontWeight: 800 }}>{value}</Typography>
+                  </Box>
+                ))}
+              </Box>
             </Paper>
 
             <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: "wrap" }}>
@@ -371,11 +386,11 @@ function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?:
 }
 
 function ServicesSection({ data }: { data: DashboardData }) {
-  return <StoreServicesCrudSection initialItems={data.services} />;
+  return <StoreServicesCrudSection initialItems={data.services} planLimits={getPlanLimits(data.store.plan_name)} />;
 }
 
-function PromotionsSection() {
-  return <StoreCouponManagementSection />;
+function PromotionsSection({ data }: { data: DashboardData }) {
+  return <StoreCouponManagementSection planLimits={getPlanLimits(data.store.plan_name)} />;
 }
 
 function CouponsSection({ data }: { data: DashboardData }) {
@@ -1481,6 +1496,7 @@ type ProfileStore = {
 };
 
 function StoreProfileSection({ data }: { data: DashboardData }) {
+  const planLimits = getPlanLimits(data.store.plan_name);
   const [form, setForm] = useState<ProfileStore>({
     name: data.store.name,
     description: data.store.description,
@@ -1669,9 +1685,16 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
                   )}
                 </Box>
                 <Stack spacing={0.5}>
-                  <Typography variant="body2" fontWeight={700} color="#173a2d">
-                    Foto del local
-                  </Typography>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography variant="body2" fontWeight={700} color="#173a2d">
+                      Foto del local
+                    </Typography>
+                    <Chip
+                      label={`Hasta ${planLimits.maxPhotos} foto${planLimits.maxPhotos !== 1 ? "s" : ""} · tu plan`}
+                      size="small"
+                      sx={{ fontWeight: 700, bgcolor: "#deebdf", color: "#173a2d", fontSize: "0.68rem" }}
+                    />
+                  </Stack>
                   <Typography variant="caption" color="text.secondary">
                     JPG, PNG o WEBP · Máx. 10 MB
                   </Typography>
@@ -2401,7 +2424,7 @@ function renderSection(section: DashboardSection, data: DashboardData, userRole?
     case "servicios":
       return <ServicesSection data={data} />;
     case "promociones":
-      return <PromotionsSection />;
+      return <PromotionsSection data={data} />;
     case "cupones":
       return <CouponsSection data={data} />;
     case "reseñas":

@@ -36,6 +36,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { BenefitRow, CouponRow, ServiceRow } from "./types";
+import type { PlanLimits } from "@/lib/plan-limits";
 
 type ServiceItem = ServiceRow & {
   description: string;
@@ -118,7 +119,13 @@ function DeleteConfirmDialog({
   );
 }
 
-export function StoreServicesCrudSection({ initialItems }: { initialItems: ServiceRow[] }) {
+export function StoreServicesCrudSection({
+  initialItems,
+  planLimits,
+}: {
+  initialItems: ServiceRow[];
+  planLimits?: PlanLimits;
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [services, setServices] = useState<ServiceItem[]>(
@@ -249,12 +256,44 @@ export function StoreServicesCrudSection({ initialItems }: { initialItems: Servi
     <Stack spacing={2}>
       <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
         <CardContent>
-          <Typography variant="h6" color="#173a2d">
-            Mis Servicios
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 0.5 }}>
-            Crea, edita y elimina servicios asociados a tu local.
-          </Typography>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
+            <Box>
+              <Typography variant="h6" color="#173a2d">
+                Mis Servicios
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5 }}>
+                Crea, edita y elimina servicios asociados a tu local.
+              </Typography>
+            </Box>
+            {planLimits && (
+              <Chip
+                label={
+                  planLimits.maxServices === -1
+                    ? `${services.length} servicios · ilimitados`
+                    : `${services.length} / ${planLimits.maxServices} servicios`
+                }
+                size="small"
+                sx={{
+                  fontWeight: 700,
+                  bgcolor:
+                    planLimits.maxServices !== -1 && services.length >= planLimits.maxServices
+                      ? "#fef3c7"
+                      : "#deebdf",
+                  color:
+                    planLimits.maxServices !== -1 && services.length >= planLimits.maxServices
+                      ? "#92400e"
+                      : "#173a2d",
+                }}
+              />
+            )}
+          </Stack>
+
+          {planLimits && planLimits.maxServices !== -1 && services.length >= planLimits.maxServices && !editingId && (
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              Alcanzaste el límite de <strong>{planLimits.maxServices} servicios</strong> de tu plan.
+              Eliminá uno existente o actualizá tu suscripción para agregar más.
+            </Alert>
+          )}
 
           {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
 
@@ -322,7 +361,17 @@ export function StoreServicesCrudSection({ initialItems }: { initialItems: Servi
           </Box>
 
           <Stack direction="row" spacing={1} sx={{ mt: 1.8 }}>
-            <Button variant="contained" sx={{ bgcolor: "#1f4b3b" }} onClick={() => void handleSubmit()}>
+            <Button
+              variant="contained"
+              sx={{ bgcolor: "#1f4b3b" }}
+              onClick={() => void handleSubmit()}
+              disabled={
+                !editingId &&
+                planLimits != null &&
+                planLimits.maxServices !== -1 &&
+                services.length >= planLimits.maxServices
+              }
+            >
               {editingId ? "Actualizar servicio" : "Crear servicio"}
             </Button>
             {editingId && (
@@ -443,7 +492,7 @@ const emptyCouponForm = () => ({
   enabled: true,
 });
 
-export function StoreCouponManagementSection() {
+export function StoreCouponManagementSection({ planLimits }: { planLimits?: PlanLimits }) {
   const [activeTab, setActiveTab] = useState(0);
 
   // ── Mis Cupones state ──
@@ -590,9 +639,22 @@ export function StoreCouponManagementSection() {
   return (
     <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
       <CardContent>
-        <Typography variant="h6" color="#173a2d">
-          Cupones
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
+          <Typography variant="h6" color="#173a2d">
+            Cupones
+          </Typography>
+          {planLimits && (
+            <Chip
+              label={`${coupons.length} / ${planLimits.maxCoupons} cupones`}
+              size="small"
+              sx={{
+                fontWeight: 700,
+                bgcolor: coupons.length >= planLimits.maxCoupons ? "#fef3c7" : "#deebdf",
+                color: coupons.length >= planLimits.maxCoupons ? "#92400e" : "#173a2d",
+              }}
+            />
+          )}
+        </Stack>
 
         <Tabs
           value={activeTab}
@@ -610,6 +672,13 @@ export function StoreCouponManagementSection() {
               Creá cupones de descuento para tus clientes. Los cupones activos aparecerán
               disponibles al generar un consumo.
             </Typography>
+
+            {planLimits && !editingId && coupons.length >= planLimits.maxCoupons && (
+              <Alert severity="warning" sx={{ mb: 1.5 }}>
+                Alcanzaste el límite de <strong>{planLimits.maxCoupons} cupones</strong> de tu plan.
+                Eliminá uno existente o actualizá tu suscripción para crear más.
+              </Alert>
+            )}
 
             {error && <Alert severity="error" sx={{ mt: 1.5 }}>{error}</Alert>}
 
@@ -680,7 +749,12 @@ export function StoreCouponManagementSection() {
                 variant="contained"
                 sx={{ bgcolor: "#1f4b3b", "&:hover": { bgcolor: "#173a2d" } }}
                 onClick={() => void handleSubmit()}
-                disabled={saving}
+                disabled={
+                  saving ||
+                  (!editingId &&
+                    planLimits != null &&
+                    coupons.length >= planLimits.maxCoupons)
+                }
               >
                 {saving ? "Guardando…" : editingId ? "Actualizar cupón" : "Crear cupón"}
               </Button>

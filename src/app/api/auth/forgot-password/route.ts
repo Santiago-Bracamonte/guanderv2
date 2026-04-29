@@ -105,7 +105,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('Forgot password error:', err);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('Forgot password error:', msg);
+    return NextResponse.json({ error: `Error interno: ${msg}` }, { status: 500 });
   }
 }

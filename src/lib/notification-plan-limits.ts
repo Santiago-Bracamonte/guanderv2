@@ -26,7 +26,7 @@ export const DEFAULT_NOTIFICATION_LIMITS: Record<PlanTier, LimitConfig> = {
     cooldownMinutes: 15,
     maxPerHour: 2,
     maxPerDay: 5,
-    maxPerMonth: 20,
+    maxPerMonth: 30,
   },
 };
 
