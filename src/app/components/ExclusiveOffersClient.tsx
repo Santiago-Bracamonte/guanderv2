@@ -121,9 +121,9 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
               alignContent: 'start',
             }}
           >
-            {pageOffers.map((offer) => (
+            {pageOffers.map((offer, i) => (
             <Card
-              key={offer.id}
+              key={`${offer.tag}-${offer.id}-${i}`}
               variant="outlined"
               sx={{
                 border: '1px solid',
