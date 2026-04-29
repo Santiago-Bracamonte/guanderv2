@@ -50,8 +50,8 @@ export default function Register() {
   useEffect(() => { setIsMounted(true); }, []);
 
   async function goToStep2() {
-    if (password !== confirmPassword) { setError("Las contraseÃƒÂ±as no coinciden"); return; }
-    if (password.length < 6) { setError("La contraseÃƒÂ±a debe tener al menos 6 caracteres"); return; }
+    if (password !== confirmPassword) { setError("Las contraseñas no coinciden"); return; }
+    if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres"); return; }
     if (!email.trim()) { setError("El email es requerido"); return; }
     setError("");
     setPlansLoading(true);
@@ -79,8 +79,8 @@ export default function Register() {
       });
       const data: Record<string, unknown> = await res.json();
       if (!res.ok) {
-        if (res.status === 409) setError((data.error as string) || "El email ya estÃƒÂ¡ registrado");
-        else if (res.status === 400) setError((data.error as string) || "Datos invÃƒÂ¡lidos");
+        if (res.status === 409) setError((data.error as string) || "El email ya está registrado");
+        else if (res.status === 400) setError((data.error as string) || "Datos inválidos");
         else setError((data.error as string) || "Error al registrar");
         setLoading(false);
         setStep(1);
@@ -102,9 +102,9 @@ export default function Register() {
       const userRole = (data.user as { role: string })?.role;
       if (userRole === "admin") window.location.href = "/dashboard/admin";
       else if (userRole === "professional" || userRole === "store_owner") window.location.href = "/dashboard/store";
-      else setError("Rol no vÃƒÂ¡lido.");
+      else setError("Rol no válido.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error de conexiÃƒÂ³n");
+      setError(err instanceof Error ? err.message : "Error de conexión");
       setLoading(false);
     }
   }
@@ -121,18 +121,18 @@ export default function Register() {
             <span className="text-2xl font-black tracking-tight">Guander</span>
           </Link>
           <h1 className="text-4xl font-bold mb-4 leading-tight">
-            {step === 1 ? "ÃƒÅ¡nete a la plataforma" : "ElegÃƒÂ­ tu plan"}
+            {step === 1 ? "Únete a la plataforma" : "Elegí tu plan"}
           </h1>
           <p className="text-emerald-100 text-sm leading-relaxed mb-4">
             {step === 1
-              ? "Registra tu local o perfil profesional y comenzÃƒÂ¡ a gestionar servicios, cupones y suscripciones desde un solo lugar."
-              : "Tu plan queda pendiente de pago. El equipo de Guander se comunicarÃƒÂ¡ con vos para coordinar el cobro."}
+              ? "Registra tu local o perfil profesional y comenzá a gestionar servicios, cupones y suscripciones desde un solo lugar."
+              : "Tu plan queda pendiente de pago. El equipo de Guander se comunicará con vos para coordinar el cobro."}
           </p>
           {step === 1 && (
             <div className="flex flex-col gap-3 mt-8">
-              {["GestiÃƒÂ³n de locales y servicios", "Cupones y promociones propias", "EstadÃƒÂ­sticas en tiempo real", "Planes de suscripciÃƒÂ³n flexibles"].map((t) => (
+              {["Gestión de locales y servicios", "Cupones y promociones propias", "Estadísticas en tiempo real", "Planes de suscripción flexibles"].map((t) => (
                 <div key={t} className="flex items-center gap-3">
-                  <span className="text-emerald-400 font-bold text-base">Ã¢â€ â€™</span>
+                  <span className="text-emerald-400 font-bold text-base">→</span>
                   <span className="text-emerald-100 text-sm">{t}</span>
                 </div>
               ))}
@@ -140,9 +140,9 @@ export default function Register() {
           )}
           {step === 2 && (
             <div className="mt-8 space-y-3">
-              <div className="flex items-center gap-3"><span className="text-emerald-400">Ã¢Å“â€œ</span><span className="text-emerald-100 text-sm">PodÃƒÂ©s cambiar de plan en cualquier momento</span></div>
-              <div className="flex items-center gap-3"><span className="text-emerald-400">Ã¢Å“â€œ</span><span className="text-emerald-100 text-sm">30 dÃƒÂ­as de prueba gratis incluidos</span></div>
-              <div className="flex items-center gap-3"><span className="text-emerald-400">Ã¢Å“â€œ</span><span className="text-emerald-100 text-sm">CancelÃƒÂ¡ cuando quieras sin penalidades</span></div>
+              <div className="flex items-center gap-3"><span className="text-emerald-400">✓</span><span className="text-emerald-100 text-sm">Podés cambiar de plan en cualquier momento</span></div>
+              <div className="flex items-center gap-3"><span className="text-emerald-400">✓</span><span className="text-emerald-100 text-sm">30 días de prueba gratis incluidos</span></div>
+              <div className="flex items-center gap-3"><span className="text-emerald-400">✓</span><span className="text-emerald-100 text-sm">Cancelá cuando quieras sin penalidades</span></div>
             </div>
           )}
         </div>
@@ -168,7 +168,7 @@ export default function Register() {
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">{error}</div>
           )}
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ STEP 1: Datos Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── STEP 1: Datos ── */}
           {step === 1 && (
             <>
               <div className="mb-8">
@@ -195,30 +195,30 @@ export default function Register() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="tel" className="block text-xs font-semibold text-gray-600 mb-1.5">TelÃƒÂ©fono</label>
+                    <label htmlFor="tel" className="block text-xs font-semibold text-gray-600 mb-1.5">Teléfono</label>
                     <input id="tel" type="tel" placeholder="+54..." value={tel} onChange={(e) => setTel(e.target.value)}
                       className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
                   </div>
                   <div>
-                    <label htmlFor="address" className="block text-xs font-semibold text-gray-600 mb-1.5">DirecciÃƒÂ³n</label>
-                    <input id="address" type="text" placeholder="Tu direcciÃƒÂ³n" value={address} onChange={(e) => setAddress(e.target.value)}
+                    <label htmlFor="address" className="block text-xs font-semibold text-gray-600 mb-1.5">Dirección</label>
+                    <input id="address" type="text" placeholder="Tu dirección" value={address} onChange={(e) => setAddress(e.target.value)}
                       className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="password" className="block text-xs font-semibold text-gray-600 mb-1.5">ContraseÃƒÂ±a</label>
-                    <input id="password" type="password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" required value={password} onChange={(e) => setPassword(e.target.value)}
+                    <label htmlFor="password" className="block text-xs font-semibold text-gray-600 mb-1.5">Contraseña</label>
+                    <input id="password" type="password" placeholder="••••••••" required value={password} onChange={(e) => setPassword(e.target.value)}
                       className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
                   </div>
                   <div>
-                    <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-600 mb-1.5">Confirmar contraseÃƒÂ±a</label>
-                    <input id="confirmPassword" type="password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                    <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-600 mb-1.5">Confirmar contraseña</label>
+                    <input id="confirmPassword" type="password" placeholder="••••••••" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                       className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ã‚Â¿QuÃƒÂ© eres?</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">¿Qué eres?</label>
                   <div className="grid grid-cols-2 gap-3">
                     {[{ value: "professional", label: "Profesional" }, { value: "store_owner", label: "Local / Tienda" }].map((opt) => (
                       <button key={opt.value} type="button" onClick={() => setRole(opt.value)}
@@ -232,26 +232,26 @@ export default function Register() {
                 </div>
                 <button type="button" onClick={goToStep2}
                   className="mt-2 h-11 w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 shadow-sm hover:shadow-md">
-                  Siguiente Ã¢â‚¬â€ Elegir plan Ã¢â€ â€™
+                  Siguiente — Elegir plan →
                 </button>
               </div>
               <p className="text-center text-sm text-gray-500 mt-6">
-                Ã‚Â¿Ya tienes cuenta?{" "}
-                <Link href="/login" className="font-semibold text-emerald-700 hover:text-emerald-800">Inicia sesiÃƒÂ³n</Link>
+                ¿Ya tienes cuenta?{" "}
+                <Link href="/login" className="font-semibold text-emerald-700 hover:text-emerald-800">Inicia sesión</Link>
               </p>
-              <p className="text-xs text-gray-400 text-center mt-4">Al registrarte aceptas nuestros tÃƒÂ©rminos y condiciones de servicio</p>
+              <p className="text-xs text-gray-400 text-center mt-4">Al registrarte aceptas nuestros términos y condiciones de servicio</p>
             </>
           )}
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ STEP 2: Plan selection Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── STEP 2: Plan selection ── */}
           {step === 2 && (
             <>
               <div className="mb-6">
                 <button type="button" onClick={() => setStep(1)} className="text-sm text-emerald-700 hover:text-emerald-800 font-semibold mb-3 flex items-center gap-1">
-                  Ã¢â€ Â Volver
+                  ← Volver
                 </button>
-                <h2 className="text-2xl font-bold text-gray-900">ElegÃƒÂ­ tu plan</h2>
-                <p className="text-gray-500 text-sm mt-1">El pago se coordina con el equipo de Guander tras la activaciÃƒÂ³n</p>
+                <h2 className="text-2xl font-bold text-gray-900">Elegí tu plan</h2>
+                <p className="text-gray-500 text-sm mt-1">El pago se coordina con el equipo de Guander tras la activación</p>
               </div>
 
               {plansLoading ? (
@@ -274,7 +274,7 @@ export default function Register() {
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                             isSelected ? "border-emerald-500 bg-emerald-500" : "border-gray-300"
                           }`}>
-                            {isSelected && <span className="text-white text-xs font-bold">Ã¢Å“â€œ</span>}
+                            {isSelected && <span className="text-white text-xs font-bold">✓</span>}
                           </div>
                         </div>
                         {plan.description && <p className="text-gray-500 text-xs mt-1">{plan.description}</p>}
@@ -282,8 +282,8 @@ export default function Register() {
                           <ul className="mt-2 space-y-1">
                             {benefits.map((b, i) => (
                               <li key={i} className="flex items-start gap-1.5 text-xs text-gray-600">
-                                <span className="text-emerald-500 mt-0.5 shrink-0">Ã¢Å“â€œ</span>
-                                <span><span className="font-medium">{b.benefit}</span>{b.detail && <span className="text-gray-400"> Ã¢â‚¬â€ {b.detail}</span>}</span>
+                                <span className="text-emerald-500 mt-0.5 shrink-0">✓</span>
+                                <span><span className="font-medium">{b.benefit}</span>{b.detail && <span className="text-gray-400"> — {b.detail}</span>}</span>
                               </li>
                             ))}
                           </ul>
@@ -297,7 +297,7 @@ export default function Register() {
 
               {selectedPlanId === null && (
                 <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-                  PodÃƒÂ©s continuar sin seleccionar un plan. El admin te asignarÃƒÂ¡ uno al activar tu cuenta.
+                  Podés continuar sin seleccionar un plan. El admin te asignará uno al activar tu cuenta.
                 </p>
               )}
 

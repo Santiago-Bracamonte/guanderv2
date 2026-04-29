@@ -936,7 +936,14 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
   const currentAmount = data.store.plan_amount ?? 0;
   const sortedPlans = [...data.planOptions].sort((a, b) => a.amount - b.amount);
   const upgradePlans = sortedPlans.filter((p) => p.amount > currentAmount);
+  const downgradePlans = sortedPlans.filter((p) => p.amount > 0 && p.amount < currentAmount);
   const isHighestPlan = upgradePlans.length === 0 && data.planOptions.length > 0;
+
+  // Expiry warning
+  const expiryDate = data.store.plan_expiration_date ? new Date(data.store.plan_expiration_date) : null;
+  const daysLeft = expiryDate ? Math.ceil((expiryDate.getTime() - Date.now()) / 86_400_000) : null;
+  const isExpired = daysLeft !== null && daysLeft <= 0;
+  const expiringSOON = daysLeft !== null && daysLeft > 0 && daysLeft <= 7;
 
   const currentPlanBenefits = parsePlanBenefits(data.store.plan_benefits);
 
@@ -1022,6 +1029,28 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
               }}
             />
           </Stack>
+
+          {/* Payment pending banner */}
+          {payoutPending && (
+            <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+              <strong>Pago pendiente.</strong> Tu suscripción <strong>{data.store.plan_name}</strong> está pendiente de pago.
+              El equipo de Guander se comunicará con vos para coordinar el cobro. Hasta entonces tu cuenta puede tener acceso limitado.
+            </Alert>
+          )}
+
+          {/* Expiry banners */}
+          {isExpired && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+              <strong>Tu suscripción venció</strong> el {data.store.plan_expiration_date ? when(data.store.plan_expiration_date) : "—"}.
+              Renovála para seguir usando todas las funcionalidades de Guander.
+            </Alert>
+          )}
+          {expiringSOON && (
+            <Alert severity="warning" sx={{ mt: 2, borderRadius: 2 }}>
+              <strong>Tu suscripción vence en {daysLeft} {daysLeft === 1 ? "día" : "días"}</strong> ({data.store.plan_expiration_date ? when(data.store.plan_expiration_date) : "—"}).
+              Asegurate de tener el pago coordinado para no perder acceso.
+            </Alert>
+          )}
 
           <Paper variant="outlined" sx={{ mt: 2.2, borderColor: "#d6e4da", borderRadius: 2.5, overflow: "hidden" }}>
             <Box sx={{ px: 1.6, py: 1.2, bgcolor: "#f3f9f5", borderBottom: "1px solid #dcebe2" }}>
@@ -1139,6 +1168,82 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
 
             {upgradeError && (
               <Alert severity="error" sx={{ mt: 1.5, bgcolor: "rgba(255,255,255,0.12)", color: "#fff", "& .MuiAlert-icon": { color: "#fff" } }}>
+                {upgradeError}
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Downgrade options */}
+      {downgradePlans.length > 0 && (
+        <Card elevation={0} sx={{ border: "1px solid #d6e4da" }}>
+          <CardContent>
+            <Typography variant="h6" color="#173a2d" sx={{ mb: 0.5 }}>
+              Bajar de plan
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1.8 }}>
+              Podés cambiar a un plan con menor costo. El cambio aplica al próximo período.
+            </Typography>
+            <Stack spacing={1.2}>
+              {downgradePlans.map((plan) => (
+                <Paper
+                  key={plan.id_subscription}
+                  variant="outlined"
+                  sx={{ p: 1.4, borderRadius: 2, borderColor: "#d6e4da" }}
+                >
+                  <Stack
+                    direction={{ xs: "column", md: "row" }}
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", md: "center" }}
+                    gap={1}
+                  >
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: "#173a2d" }}>
+                        {plan.name}
+                      </Typography>
+                      {plan.description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.2 }}>
+                          {plan.description}
+                        </Typography>
+                      )}
+                      <Typography variant="body2" sx={{ mt: 0.4, fontWeight: 700, color: "#1f4b3b" }}>
+                        {money(plan.amount)} / mes
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="outlined"
+                      disabled={upgradingPlanId === plan.id_subscription}
+                      onClick={() =>
+                        void handleUpgrade(
+                          plan.id_subscription,
+                          plan.name,
+                          plan.description,
+                          plan.amount,
+                        )
+                      }
+                      startIcon={
+                        upgradingPlanId === plan.id_subscription ? (
+                          <CircularProgress size={16} />
+                        ) : undefined
+                      }
+                      sx={{
+                        borderColor: "#1f4b3b",
+                        color: "#1f4b3b",
+                        fontWeight: 600,
+                        "&:hover": { bgcolor: "#f3f9f5", borderColor: "#173a2d" },
+                      }}
+                    >
+                      {upgradingPlanId === plan.id_subscription
+                        ? "Redirigiendo..."
+                        : `Cambiar a ${plan.name}`}
+                    </Button>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+            {upgradeError && (
+              <Alert severity="error" sx={{ mt: 1.5 }}>
                 {upgradeError}
               </Alert>
             )}
