@@ -37,7 +37,7 @@ interface ExclusiveOffersClientProps {
 
 const FILTERS = ["Todas", "Profesional", "Tienda"] as const;
 type OfferFilter = (typeof FILTERS)[number];
-const PAGE_SIZE = 9;
+const PAGE_SIZE = 6;
 
 export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientProps) {
   const [activeFilter, setActiveFilter] = useState<OfferFilter>("Todas");
@@ -111,12 +111,15 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
 
       {/* Cards grid */}
       {filteredOffers.length > 0 ? (
-        <>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+              gridAutoRows: '1fr',
               gap: 2.5,
+              minHeight: { xs: 'unset', sm: '560px' },
+              alignContent: 'start',
             }}
           >
             {pageOffers.map((offer) => (
@@ -235,7 +238,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <Pagination
                 count={totalPages}
                 page={page}
@@ -247,7 +250,7 @@ export default function ExclusiveOffersClient({ offers }: ExclusiveOffersClientP
               />
             </Box>
           )}
-        </>
+        </Box>
       ) : (
         <Box sx={{ p: 5,
             textAlign: 'center',
