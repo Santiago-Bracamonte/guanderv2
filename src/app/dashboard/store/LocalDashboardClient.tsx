@@ -2519,9 +2519,11 @@ function renderSection(section: DashboardSection, data: DashboardData, userRole?
 function SidebarContent({
   selected,
   onSelect,
+  userRole,
 }: {
   selected: DashboardSection;
   onSelect: (value: DashboardSection) => void;
+  userRole?: string;
 }) {
   const router = useRouter();
 
@@ -2544,7 +2546,7 @@ function SidebarContent({
         }}
       >
         <Typography variant="overline" sx={{ color: "#5f7a6d", letterSpacing: "0.12em" }}>
-          GUANDER LOCAL
+          {userRole === "professional" ? "GUANDER PROFESIONAL" : "GUANDER LOCAL"}
         </Typography>
         <Typography variant="body2" sx={{ color: "#173a2d", fontWeight: 800 }}>
           Centro de control
@@ -2672,6 +2674,7 @@ export default function LocalDashboardClient({ data, error, userRole }: { data: 
                 setSelectedSection(section);
                 setMobileOpen(false);
               }}
+              userRole={userRole}
             />
           </Drawer>
 
@@ -2688,7 +2691,7 @@ export default function LocalDashboardClient({ data, error, userRole }: { data: 
             }}
             open
           >
-            <SidebarContent selected={selectedSection} onSelect={setSelectedSection} />
+            <SidebarContent selected={selectedSection} onSelect={setSelectedSection} userRole={userRole} />
           </Drawer>
         </Box>
 
