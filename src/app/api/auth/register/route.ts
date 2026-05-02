@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CloudflareD1Error, queryD1 } from "@/lib/cloudflare-d1";
 import { hashPassword, generateToken } from "@/lib/auth";
+import { Resend } from "resend";
 
 interface RoleRow {
   id_rol?: number;
@@ -164,6 +165,42 @@ export async function POST(request: NextRequest) {
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: "/",
     });
+
+    // Send welcome email (fire-and-forget — don't block response)
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (resendApiKey) {
+      const resend = new Resend(resendApiKey);
+      const firstName = (name || "Usuario").split(" ")[0];
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      const roleLabel = role === "professional" ? "profesional" : "local/comercio";
+
+      resend.emails.send({
+        from: "Guander <noreply@guander.site>",
+        to: email,
+        subject: "¡Bienvenido/a a Guander!",
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1b3c;">
+            <div style="background:#065f46;padding:24px 32px;border-radius:12px 12px 0 0;">
+              <h1 style="margin:0;color:#fff;font-size:22px;">✶ ¡Bienvenido/a a Guander!</h1>
+            </div>
+            <div style="background:#f9fafb;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e5e7eb;border-top:none;">
+              <p style="font-size:16px;margin:0 0 16px;">Hola <strong>${firstName}</strong>,</p>
+              <p style="font-size:15px;color:#374151;margin:0 0 24px;line-height:1.6;">
+                Tu cuenta en <strong>Guander</strong> fue creada exitosamente como <strong>${roleLabel}</strong>.
+                Ya podés iniciar sesión y empezar a usar la plataforma.
+              </p>
+              <a href="${siteUrl}/login"
+                 style="display:inline-block;background:#059669;color:#fff;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;text-decoration:none;margin-bottom:24px;">
+                Ir a mi cuenta
+              </a>
+              <p style="font-size:13px;color:#6b7280;margin:0;">
+                Si no creaste esta cuenta, podés ignorar este email.
+              </p>
+            </div>
+          </div>
+        `,
+      }).catch((err) => console.error("Welcome email error:", err));
+    }
 
     return response;
   } catch (error) {
