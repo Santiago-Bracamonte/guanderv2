@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   Settings,
   ClipboardList,
+  CreditCard,
 } from "lucide-react";
 
 const navItems = [
@@ -28,6 +29,11 @@ const navItems = [
     label: "Planes de Suscripción",
     href: "/dashboard/admin/planes",
     icon: Shield,
+  },
+  {
+    label: "Pagos y Aprobaciones",
+    href: "/dashboard/admin/pagos",
+    icon: CreditCard,
   },
   {
     label: "Servicios/Productos",

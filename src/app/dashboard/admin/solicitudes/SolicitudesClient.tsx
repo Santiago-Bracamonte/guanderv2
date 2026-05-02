@@ -300,12 +300,24 @@ export default function SolicitudesClient({ initialData }: { initialData: Solici
   const [items, setItems] = useState<SolicitudItem[]>(initialData);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [loadingFilter, setLoadingFilter] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const filtered = filter === "all" ? items : items.filter((i) => i.status === filter);
   const pendingCount = items.filter((i) => i.status === "pending").length;
 
+  let displayedItems = filtered;
+  let totalPages = 1;
+
+  if (filter === "all") {
+    totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    displayedItems = filtered.slice(startIndex, startIndex + itemsPerPage);
+  }
+
   async function changeFilter(f: typeof filter) {
     setFilter(f);
+    setCurrentPage(1);
     setLoadingFilter(true);
     try {
       const res = await fetch(`/api/admin/solicitudes?status=${f}`);
@@ -381,15 +393,42 @@ export default function SolicitudesClient({ initialData }: { initialData: Solici
           <p className="text-[#5a766a] text-sm">No hay solicitudes {filter !== "all" ? `con estado "${STATUS_LABELS[filter]?.label ?? filter}"` : ""}.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((item) => (
-            <SolicitudCard
-              key={item.id_request}
-              item={item}
-              onApprove={handleApprove}
-              onReject={handleReject}
-            />
-          ))}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {displayedItems.map((item) => (
+              <SolicitudCard
+                key={item.id_request}
+                item={item}
+                onApprove={handleApprove}
+                onReject={handleReject}
+              />
+            ))}
+          </div>
+
+          {/* Paginación solo para TODAS */}
+          {filter === "all" && totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-6 py-4">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-4 py-2 bg-white border rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                style={{ borderColor: "#c7d8cf", color: "#3a6b52" }}
+              >
+                Anterior
+              </button>
+              <span className="text-sm font-medium" style={{ color: "#3a6b52" }}>
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-4 py-2 bg-white border rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                style={{ borderColor: "#c7d8cf", color: "#3a6b52" }}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

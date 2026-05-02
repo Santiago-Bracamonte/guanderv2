@@ -7,6 +7,7 @@ export interface SubscriptionItem {
   id_subscription: number;
   name: string;
   description: string;
+  plan_benefits?: string;
   state: string;
   amount: number;
 }
@@ -50,17 +51,26 @@ export default function PlanesClient({
 
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formBenefits, setFormBenefits] = useState("");
   const [formState, setFormState] = useState<"activo" | "inactivo">("activo");
   const [formAmount, setFormAmount] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const sortedPlans = useMemo(
     () => [...plans].sort((a, b) => a.amount - b.amount),
     [plans],
   );
 
+  const totalPages = Math.ceil(sortedPlans.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const displayedPlans = sortedPlans.slice(startIndex, startIndex + itemsPerPage);
+
   const resetForm = () => {
     setFormName("");
     setFormDescription("");
+    setFormBenefits("");
     setFormState("activo");
     setFormAmount("");
   };
@@ -74,6 +84,7 @@ export default function PlanesClient({
   const openEdit = (plan: SubscriptionItem) => {
     setFormName(plan.name);
     setFormDescription(plan.description);
+    setFormBenefits(plan.plan_benefits || "");
     setFormState(plan.state === "inactivo" ? "inactivo" : "activo");
     setFormAmount(String(plan.amount));
     setEditingPlan(plan);
@@ -96,6 +107,7 @@ export default function PlanesClient({
         body: JSON.stringify({
           name: formName.trim(),
           description: formDescription.trim(),
+          plan_benefits: formBenefits.trim(),
           state: formState,
           amount,
         }),
@@ -113,6 +125,7 @@ export default function PlanesClient({
         id_subscription: data.id_subscription ?? Date.now(),
         name: formName.trim(),
         description: formDescription.trim(),
+        plan_benefits: formBenefits.trim(),
         state: formState,
         amount,
       };
@@ -139,6 +152,7 @@ export default function PlanesClient({
           id_subscription: editingPlan.id_subscription,
           name: formName.trim(),
           description: formDescription.trim(),
+          plan_benefits: formBenefits.trim(),
           state: formState,
           amount,
         }),
@@ -156,6 +170,7 @@ export default function PlanesClient({
                 ...item,
                 name: formName.trim(),
                 description: formDescription.trim(),
+                plan_benefits: formBenefits.trim(),
                 state: formState,
                 amount,
               }
@@ -208,6 +223,25 @@ export default function PlanesClient({
             color: "var(--guander-ink)",
           }}
           placeholder="Detalle del plan"
+        />
+      </div>
+      <div>
+        <label
+          className="block text-sm font-medium mb-1.5"
+          style={{ color: "var(--guander-ink)" }}
+        >
+          Beneficios (uno por línea)
+        </label>
+        <textarea
+          value={formBenefits}
+          onChange={(e) => setFormBenefits(e.target.value)}
+          rows={4}
+          className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
+          style={{
+            border: "1px solid var(--guander-border)",
+            color: "var(--guander-ink)",
+          }}
+          placeholder="Mayor visibilidad&#10;Soporte prioritario&#10;Estadísticas avanzadas"
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -283,7 +317,7 @@ export default function PlanesClient({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedPlans.map((plan) => (
+        {displayedPlans.map((plan) => (
           <div
             key={plan.id_subscription}
             className="bg-white rounded-2xl p-6"
@@ -321,6 +355,16 @@ export default function PlanesClient({
             >
               {plan.description}
             </p>
+            {plan.plan_benefits && (
+              <ul className="mb-4 space-y-1">
+                {plan.plan_benefits.split('\n').filter(b => b.trim()).map((benefit, idx) => (
+                  <li key={idx} className="text-sm flex items-start gap-2 text-gray-700">
+                    <span className="text-[var(--guander-forest)] mt-0.5">•</span>
+                    {benefit}
+                  </li>
+                ))}
+              </ul>
+            )}
             <p
               className="text-2xl font-bold mb-4"
               style={{ color: "var(--guander-ink)" }}
@@ -352,6 +396,30 @@ export default function PlanesClient({
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-6 py-4">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            className="px-4 py-2 bg-white border rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-gray-50 transition-colors"
+            style={{ borderColor: "#c7d8cf", color: "#3a6b52" }}
+          >
+            Anterior
+          </button>
+          <span className="text-sm font-medium" style={{ color: "#3a6b52" }}>
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            className="px-4 py-2 bg-white border rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-gray-50 transition-colors"
+            style={{ borderColor: "#c7d8cf", color: "#3a6b52" }}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
 
       <Modal open={showAdd} onClose={closeAll}>
         <div className="p-6 pb-3 flex items-center justify-between">
