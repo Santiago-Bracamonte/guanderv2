@@ -12,6 +12,22 @@ export interface SubscriptionItem {
   amount: number;
 }
 
+type BenefitItem = { benefit: string; detail?: string };
+
+function parseBenefits(raw?: string): BenefitItem[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as BenefitItem[];
+  } catch {
+    // Fallback to line breaks
+  }
+  return raw
+    .split("\n")
+    .map((benefit) => ({ benefit: benefit.trim() }))
+    .filter((item) => item.benefit);
+}
+
 function Modal({
   open,
   onClose,
@@ -355,12 +371,17 @@ export default function PlanesClient({
             >
               {plan.description}
             </p>
-            {plan.plan_benefits && (
+            {parseBenefits(plan.plan_benefits).length > 0 && (
               <ul className="mb-4 space-y-1">
-                {plan.plan_benefits.split('\n').filter(b => b.trim()).map((benefit, idx) => (
+                {parseBenefits(plan.plan_benefits).map((benefit, idx) => (
                   <li key={idx} className="text-sm flex items-start gap-2 text-gray-700">
                     <span className="text-[var(--guander-forest)] mt-0.5">•</span>
-                    {benefit}
+                    <span>
+                      <span className="font-medium">{benefit.benefit}</span>
+                      {benefit.detail ? (
+                        <span className="text-gray-500"> — {benefit.detail}</span>
+                      ) : null}
+                    </span>
                   </li>
                 ))}
               </ul>

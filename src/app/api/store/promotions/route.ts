@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import { ensureBenefitStoreTable } from "@/lib/benefit-store";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 
 type PromotionInput = {
@@ -30,6 +31,8 @@ export async function GET() {
   const auth = await getStoreOwnerContext();
   if (!auth.ok) return auth.response;
 
+  await ensureBenefitStoreTable();
+
   const { context } = auth;
 
   const promotions = await queryD1<{
@@ -52,6 +55,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const auth = await getStoreOwnerContext();
   if (!auth.ok) return auth.response;
+
+  await ensureBenefitStoreTable();
 
   const { context } = auth;
 
@@ -86,6 +91,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const auth = await getStoreOwnerContext();
   if (!auth.ok) return auth.response;
+
+  await ensureBenefitStoreTable();
 
   const { context } = auth;
 
@@ -140,6 +147,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await getStoreOwnerContext();
   if (!auth.ok) return auth.response;
+
+  await ensureBenefitStoreTable();
 
   const { context } = auth;
 

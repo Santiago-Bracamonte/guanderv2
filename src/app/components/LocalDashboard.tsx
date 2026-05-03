@@ -4,6 +4,8 @@ import { CloudflareD1Error, queryD1 } from "@/lib/cloudflare-d1";
 import { verifyToken } from "@/lib/auth";
 import { ensureSubscriptionBenefitsColumn } from "@/lib/subscription-benefits";
 import { ensureStoreReviewRepliesTable } from "@/lib/store-review-replies";
+import { ensureBenefitStoreTable } from "@/lib/benefit-store";
+import { ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
 import LocalDashboardClient from "../dashboard/store/LocalDashboardClient";
 import OnboardingRequestForm from "../dashboard/store/OnboardingRequestForm";
 import type {
@@ -25,6 +27,8 @@ type NumberRow = { value: number | null };
 async function loadDashboardData(userId: number): Promise<DashboardData | null> {
   await ensureSubscriptionBenefitsColumn();
   await ensureStoreReviewRepliesTable();
+  await ensureBenefitStoreTable();
+  await ensureStoreSubPayoutColumn();
 
   const stores = await queryD1<StoreSummaryRow>(
     `SELECT

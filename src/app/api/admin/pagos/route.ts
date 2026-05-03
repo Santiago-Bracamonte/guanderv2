@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
 
 export async function GET(request: NextRequest) {
   const session = await getAdminSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    await ensureSubPayoutTable();
+    await ensureStoreSubPayoutColumn();
     const payouts = await queryD1(
       `SELECT sp.*, u.username, st.name as store_name, sub.name as subscription_name 
        FROM sub_payout sp 
@@ -27,6 +30,8 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    await ensureSubPayoutTable();
+    await ensureStoreSubPayoutColumn();
     const { action, id_sub_payout, id_store_sub } = await request.json();
 
     if (action === "approve") {

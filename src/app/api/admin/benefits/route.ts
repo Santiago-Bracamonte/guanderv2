@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import { ensureBenefitStoreTable } from "@/lib/benefit-store";
 
 type BenefitInput = {
   idBenefitProf?: number;
@@ -30,6 +31,7 @@ function toPositiveInt(value: unknown): number | null {
 
 export async function GET() {
   try {
+    await ensureBenefitStoreTable();
     const [benefitProf, benefitStore, professionals, stores] =
       await Promise.all([
         queryD1<{
@@ -117,6 +119,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureBenefitStoreTable();
     let body: BenefitInput;
     try {
       body = await request.json();
@@ -182,6 +185,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await ensureBenefitStoreTable();
     let body: BenefitInput;
     try {
       body = await request.json();
