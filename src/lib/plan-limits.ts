@@ -15,6 +15,49 @@ export type PlanLimits = {
   exposureLevel: "normal" | "alta" | "destacada";
 };
 
+export function getPlanLimitsFromBenefits(raw: string | null | undefined): PlanLimits | null {
+  if (!raw?.trim()) return null;
+
+  const text = raw.toLowerCase();
+
+  const readLimit = (pattern: RegExp): number | null => {
+    const match = text.match(pattern);
+    if (!match) return null;
+    const value = Number(match[1]);
+    return Number.isFinite(value) ? value : null;
+  };
+
+  const hasUnlimitedServices = /(servicios\s+ilimitad|ilimitados\s+servicios)/i.test(text);
+  const maxPhotos = readLimit(/hasta\s+(\d+)\s+fotos?/i);
+  const maxServices = hasUnlimitedServices ? -1 : readLimit(/hasta\s+(\d+)\s+servicios/i);
+  const maxCoupons = readLimit(/hasta\s+(\d+)\s+cupones/i);
+  const maxNotifications = readLimit(/hasta\s+(\d+)\s+notificaciones/i);
+
+  let exposureLevel: PlanLimits["exposureLevel"] = "normal";
+  if (/exposicion\s+destacad|destacad[ao]/i.test(text)) {
+    exposureLevel = "destacada";
+  } else if (/exposicion\s+alta|alta\s+exposicion/i.test(text)) {
+    exposureLevel = "alta";
+  }
+
+  if (
+    maxPhotos === null &&
+    maxServices === null &&
+    maxCoupons === null &&
+    maxNotifications === null
+  ) {
+    return null;
+  }
+
+  return {
+    maxPhotos: maxPhotos ?? 0,
+    maxServices: maxServices ?? 0,
+    maxCoupons: maxCoupons ?? 0,
+    maxNotificationsPerMonth: maxNotifications ?? 0,
+    exposureLevel,
+  };
+}
+
 export function getPlanLimits(planName: string | null | undefined): PlanLimits {
   const name = (planName ?? "").toLowerCase();
 

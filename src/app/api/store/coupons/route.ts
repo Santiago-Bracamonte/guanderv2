@@ -140,9 +140,10 @@ export async function GET() {
   if (!auth.ok) return auth.response;
 
   const { context } = auth;
-  const isProf = context.role === "professional";
+  const isProf = context.role === "professional" && context.professionalId;
 
-  const couponsQuery = isProf
+  try {
+    const couponsQuery = isProf
     ? queryD1<{
         id_coupon: number;
         name: string;
@@ -213,47 +214,54 @@ export async function GET() {
         { revalidate: false },
       );
 
-  const [coupons, couponStates] = await Promise.all([
-    couponsQuery,
-    queryD1<{ id_coupon_state: number; name: string; description: string }>(
-      "SELECT id_coupon_state, name, description FROM coupon_state ORDER BY id_coupon_state ASC",
-      [],
-      { revalidate: false },
-    ),
-  ]);
+    const [coupons, couponStates] = await Promise.all([
+      couponsQuery,
+      queryD1<{ id_coupon_state: number; name: string; description: string }>(
+        "SELECT id_coupon_state, name, description FROM coupon_state ORDER BY id_coupon_state ASC",
+        [],
+        { revalidate: false },
+      ),
+    ]);
 
   const table = isProf ? "coupon_prof" : "coupon_store";
   const ownerCol = isProf ? "fk_professional_id" : "fk_store";
   const ownerId = isProf ? context.professionalId : context.storeId;
 
-  const normalizedCoupons = [];
-  for (const coupon of coupons) {
-    let normalizedCode = coupon.code_coupon;
+    const normalizedCoupons = [];
+    for (const coupon of coupons) {
+      let normalizedCode = coupon.code_coupon;
 
-    if (!/^GUANDER-[A-Z0-9]+$/.test(coupon.code_coupon)) {
-      const desiredCode = normalizeCouponCode(coupon.code_coupon);
-      normalizedCode = await ensureUniqueCouponCode(desiredCode, table, coupon.id_coupon);
+      if (!/^GUANDER-[A-Z0-9]+$/.test(coupon.code_coupon)) {
+        const desiredCode = normalizeCouponCode(coupon.code_coupon);
+        normalizedCode = await ensureUniqueCouponCode(desiredCode, table, coupon.id_coupon);
 
-      await queryD1(
-        `UPDATE ${table} SET code_coupon = ? WHERE id_coupon = ? AND ${ownerCol} = ?`,
-        [normalizedCode, coupon.id_coupon, ownerId],
-        { revalidate: false },
-      );
+        await queryD1(
+          `UPDATE ${table} SET code_coupon = ? WHERE id_coupon = ? AND ${ownerCol} = ?`,
+          [normalizedCode, coupon.id_coupon, ownerId],
+          { revalidate: false },
+        );
+      }
+
+      normalizedCoupons.push({
+        ...coupon,
+        code_coupon: normalizedCode,
+      });
     }
 
-    normalizedCoupons.push({
-      ...coupon,
-      code_coupon: normalizedCode,
+    return NextResponse.json({
+      success: true,
+      data: {
+        coupons: normalizedCoupons,
+        couponStates,
+      },
     });
+  } catch (error) {
+    console.error("GET /api/store/coupons error:", error);
+    return NextResponse.json(
+      { error: "No se pudieron cargar los cupones" },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      coupons: normalizedCoupons,
-      couponStates,
-    },
-  });
 }
 
 export async function POST(request: NextRequest) {
@@ -261,7 +269,7 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const { context } = auth;
-  const isProf = context.role === "professional";
+  const isProf = context.role === "professional" && context.professionalId;
   const table = isProf ? "coupon_prof" : "coupon_store";
 
   let body: CouponInput;
@@ -302,59 +310,67 @@ export async function POST(request: NextRequest) {
 
   codeCoupon = await ensureUniqueCouponCode(codeCoupon, table);
 
-  if (isProf) {
-    await queryD1(
-      `INSERT INTO coupon_prof (
-        name,
-        description,
-        expiration_date,
-        point_req,
-        code_coupon,
-        amount,
-        fk_professional_id,
-        fk_coupon_state
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        name,
-        description,
-        expirationDate,
-        pointReq,
-        codeCoupon,
-        amount,
-        context.professionalId,
-        couponStateId,
-      ],
-      { revalidate: false },
-    );
-  } else {
-    await queryD1(
-      `INSERT INTO coupon_store (
-        name,
-        description,
-        state,
-        expiration_date,
-        point_req,
-        code_coupon,
-        amount,
-        fk_store,
-        fk_coupon_state
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        name,
-        description,
-        body.enabled === false ? 0 : 1,
-        expirationDate,
-        pointReq,
-        codeCoupon,
-        amount,
-        context.storeId,
-        couponStateId,
-      ],
-      { revalidate: false },
+  try {
+    if (isProf) {
+      await queryD1(
+        `INSERT INTO coupon_prof (
+          name,
+          description,
+          expiration_date,
+          point_req,
+          code_coupon,
+          amount,
+          fk_professional_id,
+          fk_coupon_state
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          name,
+          description,
+          expirationDate,
+          pointReq,
+          codeCoupon,
+          amount,
+          context.professionalId,
+          couponStateId,
+        ],
+        { revalidate: false },
+      );
+    } else {
+      await queryD1(
+        `INSERT INTO coupon_store (
+          name,
+          description,
+          state,
+          expiration_date,
+          point_req,
+          code_coupon,
+          amount,
+          fk_store,
+          fk_coupon_state
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          name,
+          description,
+          body.enabled === false ? 0 : 1,
+          expirationDate,
+          pointReq,
+          codeCoupon,
+          amount,
+          context.storeId,
+          couponStateId,
+        ],
+        { revalidate: false },
+      );
+    }
+
+    return NextResponse.json({ success: true, codeCoupon });
+  } catch (error) {
+    console.error("POST /api/store/coupons error:", error);
+    return NextResponse.json(
+      { error: "No se pudo crear el cupon" },
+      { status: 500 },
     );
   }
-
-  return NextResponse.json({ success: true, codeCoupon });
 }
 
 export async function PUT(request: NextRequest) {
@@ -362,7 +378,7 @@ export async function PUT(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const { context } = auth;
-  const isProf = context.role === "professional";
+  const isProf = context.role === "professional" && context.professionalId;
   const table = isProf ? "coupon_prof" : "coupon_store";
   const ownerCol = isProf ? "fk_professional_id" : "fk_store";
   const ownerId = isProf ? context.professionalId : context.storeId;
@@ -401,73 +417,81 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const existing = await queryD1<{ id_coupon: number; code_coupon: string }>(
-    `SELECT id_coupon, code_coupon FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ? LIMIT 1`,
-    [idCoupon, ownerId],
-    { revalidate: false },
-  );
+  try {
+    const existing = await queryD1<{ id_coupon: number; code_coupon: string }>(
+      `SELECT id_coupon, code_coupon FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ? LIMIT 1`,
+      [idCoupon, ownerId],
+      { revalidate: false },
+    );
 
-  if (existing.length === 0) {
+    if (existing.length === 0) {
+      return NextResponse.json(
+        { error: "Cupon no encontrado o no te pertenece" },
+        { status: 404 },
+      );
+    }
+
+    let codeCoupon = explicitCode;
+    if (!codeCoupon) {
+      codeCoupon = existing[0].code_coupon || (await generateUniqueCode(table));
+    } else {
+      codeCoupon = normalizeCouponCode(codeCoupon);
+    }
+
+    codeCoupon = await ensureUniqueCouponCode(codeCoupon, table, idCoupon);
+
+    if (isProf) {
+      await queryD1(
+        `UPDATE coupon_prof
+         SET name = ?,
+             description = ?,
+             expiration_date = ?,
+             point_req = ?,
+             code_coupon = ?,
+             amount = ?,
+             fk_coupon_state = ?
+         WHERE id_coupon = ?
+           AND fk_professional_id = ?`,
+        [name, description, expirationDate, pointReq, codeCoupon, amount, couponStateId, idCoupon, ownerId],
+        { revalidate: false },
+      );
+    } else {
+      await queryD1(
+        `UPDATE coupon_store
+         SET name = ?,
+             description = ?,
+             state = ?,
+             expiration_date = ?,
+             point_req = ?,
+             code_coupon = ?,
+             amount = ?,
+             fk_coupon_state = ?
+         WHERE id_coupon = ?
+           AND fk_store = ?`,
+        [
+          name,
+          description,
+          body.enabled === false ? 0 : 1,
+          expirationDate,
+          pointReq,
+          codeCoupon,
+          amount,
+          couponStateId,
+          idCoupon,
+          context.storeId,
+        ],
+        { revalidate: false },
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("PUT /api/store/coupons error:", error);
     return NextResponse.json(
-      { error: "Cupon no encontrado o no te pertenece" },
-      { status: 404 },
+      { error: "No se pudo actualizar el cupon" },
+      { status: 500 },
     );
   }
-
-  let codeCoupon = explicitCode;
-  if (!codeCoupon) {
-    codeCoupon = existing[0].code_coupon || (await generateUniqueCode(table));
-  } else {
-    codeCoupon = normalizeCouponCode(codeCoupon);
-  }
-
-  codeCoupon = await ensureUniqueCouponCode(codeCoupon, table, idCoupon);
-
-  if (isProf) {
-    await queryD1(
-      `UPDATE coupon_prof
-       SET name = ?,
-           description = ?,
-           expiration_date = ?,
-           point_req = ?,
-           code_coupon = ?,
-           amount = ?,
-           fk_coupon_state = ?
-       WHERE id_coupon = ?
-         AND fk_professional_id = ?`,
-      [name, description, expirationDate, pointReq, codeCoupon, amount, couponStateId, idCoupon, ownerId],
-      { revalidate: false },
-    );
-  } else {
-    await queryD1(
-      `UPDATE coupon_store
-       SET name = ?,
-           description = ?,
-           state = ?,
-           expiration_date = ?,
-           point_req = ?,
-           code_coupon = ?,
-           amount = ?,
-           fk_coupon_state = ?
-       WHERE id_coupon = ?
-         AND fk_store = ?`,
-      [
-        name,
-        description,
-        body.enabled === false ? 0 : 1,
-        expirationDate,
-        pointReq,
-        codeCoupon,
-        amount,
-        couponStateId,
-        idCoupon,
-        context.storeId,
-      ],
-      { revalidate: false },
-    );
-  }
-
-  return NextResponse.json({ success: true });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -475,7 +499,7 @@ export async function DELETE(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const { context } = auth;
-  const isProf = context.role === "professional";
+  const isProf = context.role === "professional" && context.professionalId;
   const table = isProf ? "coupon_prof" : "coupon_store";
   const ownerCol = isProf ? "fk_professional_id" : "fk_store";
   const ownerId = isProf ? context.professionalId : context.storeId;
@@ -487,24 +511,32 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "idCoupon es obligatorio" }, { status: 400 });
   }
 
-  const existing = await queryD1<{ id_coupon: number }>(
-    `SELECT id_coupon FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ? LIMIT 1`,
-    [idCoupon, ownerId],
-    { revalidate: false },
-  );
+  try {
+    const existing = await queryD1<{ id_coupon: number }>(
+      `SELECT id_coupon FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ? LIMIT 1`,
+      [idCoupon, ownerId],
+      { revalidate: false },
+    );
 
-  if (existing.length === 0) {
+    if (existing.length === 0) {
+      return NextResponse.json(
+        { error: "Cupon no encontrado o no te pertenece" },
+        { status: 404 },
+      );
+    }
+
+    await queryD1(
+      `DELETE FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ?`,
+      [idCoupon, ownerId],
+      { revalidate: false },
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/store/coupons error:", error);
     return NextResponse.json(
-      { error: "Cupon no encontrado o no te pertenece" },
-      { status: 404 },
+      { error: "No se pudo eliminar el cupon" },
+      { status: 500 },
     );
   }
-
-  await queryD1(
-    `DELETE FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ?`,
-    [idCoupon, ownerId],
-    { revalidate: false },
-  );
-
-  return NextResponse.json({ success: true });
 }

@@ -60,7 +60,7 @@ import { ThemeProvider, alpha, createTheme } from "@mui/material/styles";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { DashboardData } from "./types";
-import { getPlanLimits } from "@/lib/plan-limits";
+import { getPlanLimitsFromBenefits } from "@/lib/plan-limits";
 import {
   StoreCouponManagementSection,
   StoreCouponsCrudSection,
@@ -222,7 +222,7 @@ function PanelCard({ title, subtitle, value }: { title: string; subtitle?: strin
 function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?: string }) {
   const avgStars = data.avgStoreRating > 0 ? data.avgStoreRating.toFixed(1) : data.store.stars.toFixed(1);
   const payoutPending = data.store.payout_state === "pendiente";
-  const planLimits = getPlanLimits(data.store.plan_name);
+  const planLimits = getPlanLimitsFromBenefits(data.store.plan_benefits);
 
   return (
     <Stack spacing={2.2}>
@@ -388,11 +388,11 @@ function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?:
 }
 
 function ServicesSection({ data }: { data: DashboardData }) {
-  return <StoreServicesCrudSection initialItems={data.services} planLimits={getPlanLimits(data.store.plan_name)} />;
+  return <StoreServicesCrudSection initialItems={data.services} planLimits={getPlanLimitsFromBenefits(data.store.plan_benefits)} />;
 }
 
 function PromotionsSection({ data }: { data: DashboardData }) {
-  return <StoreCouponManagementSection planLimits={getPlanLimits(data.store.plan_name)} />;
+  return <StoreCouponManagementSection planLimits={getPlanLimitsFromBenefits(data.store.plan_benefits)} />;
 }
 
 function CouponsSection({ data }: { data: DashboardData }) {
@@ -966,19 +966,8 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
   const expiringSOON = daysLeft !== null && daysLeft > 0 && daysLeft <= 7;
 
   const currentPlanBenefits = parsePlanBenefits(data.store.plan_benefits);
-  const planLimits = getPlanLimits(data.store.plan_name);
-  const computedBenefits: PlanBenefitRow[] = [
-    {
-      benefit: planLimits.maxPhotos === 1 ? "1 foto de perfil" : `Hasta ${planLimits.maxPhotos} fotos`,
-      detail: "En tu perfil",
-    },
-    {
-      benefit: planLimits.maxServices === -1 ? "Servicios ilimitados" : `Hasta ${planLimits.maxServices} servicios`,
-      detail: "En tu perfil",
-    },
-  ];
-  // Merge: keep computed rows for fotos/servicios (not stored in DB), then DB rows
-  const allPlanBenefits = [...computedBenefits, ...currentPlanBenefits];
+  const planLimits = getPlanLimitsFromBenefits(data.store.plan_benefits);
+  const allPlanBenefits = [...currentPlanBenefits];
 
   async function handleUpgrade(planId: number, planName: string, planDescription: string, amount: number) {
     setUpgradingPlanId(planId);
@@ -1661,7 +1650,7 @@ type ProfileStore = {
 };
 
 function StoreProfileSection({ data }: { data: DashboardData }) {
-  const planLimits = getPlanLimits(data.store.plan_name);
+  const planLimits = getPlanLimitsFromBenefits(data.store.plan_benefits);
   const [form, setForm] = useState<ProfileStore>({
     name: data.store.name,
     description: data.store.description,
