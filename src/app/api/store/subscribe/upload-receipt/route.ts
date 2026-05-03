@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
 
 export async function POST(request: NextRequest) {
   const ctx = await getStoreOwnerContext();
   if (!ctx.ok) return ctx.response;
-  const storeId = ctx.context.storeId;
   const userId = ctx.context.userId;
   const storeSubId = ctx.context.storeSubId;
 
@@ -20,6 +20,9 @@ export async function POST(request: NextRequest) {
   if (!proofUrl) {
     return NextResponse.json({ error: "No proofURL provided" }, { status: 400 });
   }
+
+  await ensureSubPayoutTable();
+  await ensureStoreSubPayoutColumn();
 
   // Insert pending sub_payout record
   const date = new Date().toISOString();

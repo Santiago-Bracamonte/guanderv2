@@ -28,6 +28,16 @@ function parseBenefits(raw?: string): BenefitItem[] {
     .filter((item) => item.benefit);
 }
 
+function formatBenefitsForForm(raw?: string): string {
+  const parsed = parseBenefits(raw);
+  if (parsed.length === 0) return "";
+  return parsed
+    .map((item) =>
+      item.detail ? `${item.benefit} - ${item.detail}` : item.benefit,
+    )
+    .join("\n");
+}
+
 function Modal({
   open,
   onClose,
@@ -100,7 +110,7 @@ export default function PlanesClient({
   const openEdit = (plan: SubscriptionItem) => {
     setFormName(plan.name);
     setFormDescription(plan.description);
-    setFormBenefits(plan.plan_benefits || "");
+    setFormBenefits(formatBenefitsForForm(plan.plan_benefits));
     setFormState(plan.state === "inactivo" ? "inactivo" : "activo");
     setFormAmount(String(plan.amount));
     setEditingPlan(plan);

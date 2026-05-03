@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import { ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
 
 export async function POST(request: NextRequest) {
   const ctx = await getStoreOwnerContext();
@@ -9,6 +10,7 @@ export async function POST(request: NextRequest) {
   const storeId = ctx.context.storeId;
   
   try {
+    await ensureStoreSubPayoutColumn();
     // Buscar la suscripción de este local
     const storeRows = await queryD1<{ fk_store_sub_id: number }>(
       "SELECT fk_store_sub_id FROM stores WHERE id_store = ? LIMIT 1",

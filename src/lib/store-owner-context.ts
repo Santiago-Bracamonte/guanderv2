@@ -64,16 +64,6 @@ export async function getStoreOwnerContext(): Promise<
       { revalidate: false },
     );
     professionalId = profRows[0]?.id_professional ?? null;
-
-    if (!professionalId) {
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { error: "No se encontró un perfil profesional asociado al usuario" },
-          { status: 404 },
-        ),
-      };
-    }
   }
 
   if (!store) {
