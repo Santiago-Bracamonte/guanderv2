@@ -1086,16 +1086,12 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
     setUpgradeError(null);
     setUploadSuccess(false);
     try {
-      // Mock File Upload - Generate base64 or object URL
-      const fileUrl = window.URL.createObjectURL(receiptFile);
-      
-      const res = await fetch("/api/store/subscribe/upload-receipt", {
+      const formData = new FormData();
+      formData.append("file", receiptFile);
+
+      const res = await fetch("/api/store/upload-payment-proof", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          proofUrl: fileUrl, 
-          description: `File: ${receiptFile.name}` 
-        }),
+        body: formData,
       });
 
       if (!res.ok) {

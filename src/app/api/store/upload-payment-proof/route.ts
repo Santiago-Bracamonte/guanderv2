@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
+import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
 
 export async function POST(request: Request) {
   try {
@@ -39,6 +40,9 @@ export async function POST(request: Request) {
     if (!storeSubId) {
         return NextResponse.json({ error: "No hay una suscripción activa." }, { status: 400 });
     }
+
+    await ensureSubPayoutTable();
+    await ensureStoreSubPayoutColumn();
 
     // Insert into sub_payout to queue approval process for admin
     await queryD1(

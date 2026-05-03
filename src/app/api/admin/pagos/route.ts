@@ -11,11 +11,24 @@ export async function GET(request: NextRequest) {
     await ensureSubPayoutTable();
     await ensureStoreSubPayoutColumn();
     const payouts = await queryD1(
-      `SELECT sp.*, u.username, st.name as store_name, sub.name as subscription_name 
-       FROM sub_payout sp 
-       JOIN users u ON sp.fk_user = u.id_user 
+      `SELECT
+         sp.id_sub_payout,
+         sp.date,
+         sp.amount,
+         sp.description,
+         sp.proof_url,
+         sp.status,
+         sp.fk_store_sub,
+         sp.fk_user,
+         u.username,
+         COALESCE(st.name, ts.name) as store_name,
+         sub.name as subscription_name
+       FROM sub_payout sp
+       JOIN users u ON sp.fk_user = u.id_user
        JOIN store_sub ssub ON sp.fk_store_sub = ssub.id_store_sub
-       JOIN stores st ON st.fk_store_sub_id = ssub.id_store_sub
+       LEFT JOIN stores st ON st.fk_store_sub_id = ssub.id_store_sub
+       LEFT JOIN professionals pr ON pr.fk_store_sub_id = ssub.id_store_sub AND st.id_store IS NULL
+       LEFT JOIN type_service ts ON ts.id_type_service = pr.fk_type_service
        JOIN subscription sub ON ssub.fk_subscription_id = sub.id_subscription
        ORDER BY sp.id_sub_payout DESC`
     );
