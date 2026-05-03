@@ -223,6 +223,7 @@ function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?:
   const avgStars = data.avgStoreRating > 0 ? data.avgStoreRating.toFixed(1) : data.store.stars.toFixed(1);
   const payoutPending = data.store.payout_state === "pendiente";
   const planLimits = getPlanLimitsFromBenefits(data.store.plan_benefits);
+  const maxPhotos = planLimits?.maxPhotos ?? null;
 
   return (
     <Stack spacing={2.2}>
@@ -355,12 +356,30 @@ function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?:
                 Vence: {data.store.plan_expiration_date ? when(data.store.plan_expiration_date) : "N/A"}
               </Typography>
               <Box sx={{ mt: 1.5, display: "grid", gap: 0.7, gridTemplateColumns: "1fr 1fr" }}>
-                {[
-                  { label: "Fotos", value: `${planLimits.maxPhotos}` },
-                  { label: "Servicios", value: planLimits.maxServices === -1 ? "Ilimitados" : String(planLimits.maxServices) },
-                  { label: "Cupones", value: String(planLimits.maxCoupons) },
-                  { label: "Notificaciones/mes", value: String(planLimits.maxNotificationsPerMonth) },
-                ].map(({ label, value }) => (
+                {(
+                  planLimits
+                    ? [
+                        { label: "Fotos", value: `${planLimits.maxPhotos}` },
+                        {
+                          label: "Servicios",
+                          value:
+                            planLimits.maxServices === -1
+                              ? "Ilimitados"
+                              : String(planLimits.maxServices),
+                        },
+                        { label: "Cupones", value: String(planLimits.maxCoupons) },
+                        {
+                          label: "Notificaciones/mes",
+                          value: String(planLimits.maxNotificationsPerMonth),
+                        },
+                      ]
+                    : [
+                        { label: "Fotos", value: "N/A" },
+                        { label: "Servicios", value: "N/A" },
+                        { label: "Cupones", value: "N/A" },
+                        { label: "Notificaciones/mes", value: "N/A" },
+                      ]
+                ).map(({ label, value }) => (
                   <Box key={label} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1, py: 0.5, bgcolor: "#fff", borderRadius: 1.5, border: "1px solid #dde9e3" }}>
                     <Typography variant="caption" sx={{ color: "#4d6b5f", fontWeight: 600 }}>{label}</Typography>
                     <Typography variant="caption" sx={{ color: "#1f4b3b", fontWeight: 800 }}>{value}</Typography>
@@ -388,11 +407,20 @@ function DashboardOverview({ data, userRole }: { data: DashboardData; userRole?:
 }
 
 function ServicesSection({ data }: { data: DashboardData }) {
-  return <StoreServicesCrudSection initialItems={data.services} planLimits={getPlanLimitsFromBenefits(data.store.plan_benefits)} />;
+  return (
+    <StoreServicesCrudSection
+      initialItems={data.services}
+      planLimits={getPlanLimitsFromBenefits(data.store.plan_benefits) ?? undefined}
+    />
+  );
 }
 
 function PromotionsSection({ data }: { data: DashboardData }) {
-  return <StoreCouponManagementSection planLimits={getPlanLimitsFromBenefits(data.store.plan_benefits)} />;
+  return (
+    <StoreCouponManagementSection
+      planLimits={getPlanLimitsFromBenefits(data.store.plan_benefits) ?? undefined}
+    />
+  );
 }
 
 function CouponsSection({ data }: { data: DashboardData }) {
@@ -1651,6 +1679,7 @@ type ProfileStore = {
 
 function StoreProfileSection({ data }: { data: DashboardData }) {
   const planLimits = getPlanLimitsFromBenefits(data.store.plan_benefits);
+  const maxPhotos = planLimits?.maxPhotos ?? null;
   const [form, setForm] = useState<ProfileStore>({
     name: data.store.name,
     description: data.store.description,
@@ -1824,12 +1853,18 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
                     Fotos del local
                   </Typography>
                   <Chip
-                    label={`${form.gallery_urls.length} / ${planLimits.maxPhotos}`}
+                    label={`${form.gallery_urls.length} / ${maxPhotos ?? "N/A"}`}
                     size="small"
                     sx={{
                       fontWeight: 700,
-                      bgcolor: form.gallery_urls.length >= planLimits.maxPhotos ? "#fef3c7" : "#deebdf",
-                      color: form.gallery_urls.length >= planLimits.maxPhotos ? "#92400e" : "#173a2d",
+                      bgcolor:
+                        maxPhotos != null && form.gallery_urls.length >= maxPhotos
+                          ? "#fef3c7"
+                          : "#deebdf",
+                      color:
+                        maxPhotos != null && form.gallery_urls.length >= maxPhotos
+                          ? "#92400e"
+                          : "#173a2d",
                       fontSize: "0.68rem",
                     }}
                   />
@@ -1897,7 +1932,7 @@ function StoreProfileSection({ data }: { data: DashboardData }) {
                     </Box>
                   ))}
 
-                  {form.gallery_urls.length < planLimits.maxPhotos && (
+                  {maxPhotos != null && form.gallery_urls.length < maxPhotos && (
                     <Box
                       onClick={() => !uploading && fileInputRef.current?.click()}
                       sx={{
