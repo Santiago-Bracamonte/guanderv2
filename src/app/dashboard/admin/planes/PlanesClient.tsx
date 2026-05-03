@@ -1,31 +1,15 @@
 "use client";
 
-import { useMemo, useState, useRef, useCallback } from "react";
-import { Shield, X, ChevronRight, CheckCircle, XCircle, Plus, Trash2 } from "lucide-react";
-
-interface BenefitItem { benefit: string; detail?: string; }
-
-function parseBenefits(raw: string): BenefitItem[] {
-  if (!raw?.trim()) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed as BenefitItem[];
-  } catch { /* fall through */ }
-  // fallback: plain text lines
-  return raw.split(/\n/).map((b) => ({ benefit: b.trim() })).filter((b) => b.benefit);
-}
-
-function serializeBenefits(items: BenefitItem[]): string {
-  return JSON.stringify(items);
-}
+import { useMemo, useState } from "react";
+import { Shield, Plus, X } from "lucide-react";
 
 export interface SubscriptionItem {
   id_subscription: number;
   name: string;
   description: string;
+  plan_benefits?: string;
   state: string;
   amount: number;
-  plan_benefits: string;
 }
 
 function Modal({
@@ -55,35 +39,6 @@ function Modal({
   );
 }
 
-/* ─── Toast ─── */
-interface ToastMsg { id: number; type: "success" | "error"; text: string; }
-function ToastContainer({ toasts, dismiss }: { toasts: ToastMsg[]; dismiss: (id: number) => void }) {
-  return (
-    <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
-      {toasts.map((t) => (
-        <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium pointer-events-auto ${
-          t.type === "success" ? "bg-green-600 text-white" : "bg-red-500 text-white"
-        }`}>
-          {t.type === "success" ? <CheckCircle size={16} /> : <XCircle size={16} />}
-          <span>{t.text}</span>
-          <button onClick={() => dismiss(t.id)} className="ml-2 hover:opacity-70"><X size={14} /></button>
-        </div>
-      ))}
-    </div>
-  );
-}
-function useToast() {
-  const [toasts, setToasts] = useState<ToastMsg[]>([]);
-  const counterRef = useRef(0);
-  const showToast = useCallback((type: "success" | "error", text: string) => {
-    const id = ++counterRef.current;
-    setToasts((prev) => [...prev, { id, type, text }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  }, []);
-  const dismiss = useCallback((id: number) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
-  return { toasts, showToast, dismiss };
-}
-
 export default function PlanesClient({
   initialPlans,
 }: {
@@ -91,45 +46,96 @@ export default function PlanesClient({
 }) {
   const [plans, setPlans] = useState<SubscriptionItem[]>(initialPlans);
   const [saving, setSaving] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionItem | null>(null);
-  const { toasts, showToast, dismiss } = useToast();
 
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formBenefits, setFormBenefits] = useState("");
   const [formState, setFormState] = useState<"activo" | "inactivo">("activo");
   const [formAmount, setFormAmount] = useState("");
-  const [formBenefits, setFormBenefits] = useState<BenefitItem[]>([]);
-  const [newBenefit, setNewBenefit] = useState("");
-  const [newDetail, setNewDetail] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const sortedPlans = useMemo(
     () => [...plans].sort((a, b) => a.amount - b.amount),
     [plans],
   );
 
+  const totalPages = Math.ceil(sortedPlans.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const displayedPlans = sortedPlans.slice(startIndex, startIndex + itemsPerPage);
+
   const resetForm = () => {
     setFormName("");
     setFormDescription("");
+    setFormBenefits("");
     setFormState("activo");
     setFormAmount("");
-    setFormBenefits([]);
-    setNewBenefit("");
-    setNewDetail("");
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setEditingPlan(null);
+    setShowAdd(true);
   };
 
   const openEdit = (plan: SubscriptionItem) => {
     setFormName(plan.name);
     setFormDescription(plan.description);
+    setFormBenefits(plan.plan_benefits || "");
     setFormState(plan.state === "inactivo" ? "inactivo" : "activo");
     setFormAmount(String(plan.amount));
-    setFormBenefits(parseBenefits(plan.plan_benefits));
-    setNewBenefit("");
-    setNewDetail("");
     setEditingPlan(plan);
   };
 
   const closeAll = () => {
+    setShowAdd(false);
     setEditingPlan(null);
+  };
+
+  const handleCreate = async () => {
+    const amount = Number(formAmount);
+    if (!formName.trim() || !Number.isFinite(amount) || amount < 0) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formName.trim(),
+          description: formDescription.trim(),
+          plan_benefits: formBenefits.trim(),
+          state: formState,
+          amount,
+        }),
+      });
+      const data = (await res.json()) as {
+        id_subscription?: number;
+        error?: string;
+      };
+      if (!res.ok || data.error) {
+        alert(data.error ?? "No se pudo crear el plan");
+        return;
+      }
+
+      const newItem: SubscriptionItem = {
+        id_subscription: data.id_subscription ?? Date.now(),
+        name: formName.trim(),
+        description: formDescription.trim(),
+        plan_benefits: formBenefits.trim(),
+        state: formState,
+        amount,
+      };
+      setPlans((prev) => [...prev, newItem]);
+      closeAll();
+    } catch {
+      alert("No se pudo crear el plan");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpdate = async () => {
@@ -146,14 +152,14 @@ export default function PlanesClient({
           id_subscription: editingPlan.id_subscription,
           name: formName.trim(),
           description: formDescription.trim(),
+          plan_benefits: formBenefits.trim(),
           state: formState,
           amount,
-          plan_benefits: serializeBenefits(formBenefits),
         }),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok || data.error) {
-        showToast("error", data.error ?? "No se pudo actualizar el plan");
+        alert(data.error ?? "No se pudo actualizar el plan");
         return;
       }
 
@@ -164,30 +170,20 @@ export default function PlanesClient({
                 ...item,
                 name: formName.trim(),
                 description: formDescription.trim(),
+                plan_benefits: formBenefits.trim(),
                 state: formState,
-                amount,                plan_benefits: serializeBenefits(formBenefits),              }
+                amount,
+              }
             : item,
         ),
       );
       closeAll();
-      showToast("success", "Plan actualizado correctamente");
     } catch {
-      showToast("error", "No se pudo actualizar el plan");
+      alert("No se pudo actualizar el plan");
     } finally {
       setSaving(false);
     }
   };
-
-  const addBenefit = () => {
-    const b = newBenefit.trim();
-    if (!b) return;
-    setFormBenefits((prev) => [...prev, { benefit: b, detail: newDetail.trim() || undefined }]);
-    setNewBenefit("");
-    setNewDetail("");
-  };
-
-  const removeBenefit = (idx: number) =>
-    setFormBenefits((prev) => prev.filter((_, i) => i !== idx));
 
   const renderForm = () => (
     <div className="space-y-4 p-6 pt-0">
@@ -227,6 +223,25 @@ export default function PlanesClient({
             color: "var(--guander-ink)",
           }}
           placeholder="Detalle del plan"
+        />
+      </div>
+      <div>
+        <label
+          className="block text-sm font-medium mb-1.5"
+          style={{ color: "var(--guander-ink)" }}
+        >
+          Beneficios (uno por línea)
+        </label>
+        <textarea
+          value={formBenefits}
+          onChange={(e) => setFormBenefits(e.target.value)}
+          rows={4}
+          className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
+          style={{
+            border: "1px solid var(--guander-border)",
+            color: "var(--guander-ink)",
+          }}
+          placeholder="Mayor visibilidad&#10;Soporte prioritario&#10;Estadísticas avanzadas"
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -276,76 +291,33 @@ export default function PlanesClient({
           />
         </div>
       </div>
-
-      {/* Benefits builder */}
-      <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: "var(--guander-ink)" }}>
-          Beneficios del plan
-        </label>
-
-        {/* Existing benefits */}
-        {formBenefits.length > 0 && (
-          <ul className="mb-3 space-y-1.5">
-            {formBenefits.map((b, i) => (
-              <li key={i} className="flex items-start gap-2 px-3 py-2 rounded-xl text-sm" style={{ backgroundColor: "var(--guander-mint)" }}>
-                <span style={{ color: "var(--guander-forest)" }} className="mt-0.5 shrink-0">✓</span>
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium" style={{ color: "var(--guander-ink)" }}>{b.benefit}</span>
-                  {b.detail && <span className="ml-1 text-xs" style={{ color: "var(--guander-muted)" }}>— {b.detail}</span>}
-                </div>
-                <button type="button" onClick={() => removeBenefit(i)} className="shrink-0 hover:opacity-70 transition cursor-pointer">
-                  <Trash2 size={14} color="#c0392b" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* Add new benefit */}
-        <div className="space-y-2">
-          <input
-            type="text"
-            value={newBenefit}
-            onChange={(e) => setNewBenefit(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())}
-            placeholder="Ej. Perfil destacado"
-            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-            style={{ border: "1px solid var(--guander-border)", color: "var(--guander-ink)" }}
-          />
-          <input
-            type="text"
-            value={newDetail}
-            onChange={(e) => setNewDetail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addBenefit())}
-            placeholder="Detalle opcional (ej. hasta 5 fotos)"
-            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-            style={{ border: "1px solid var(--guander-border)", color: "var(--guander-ink)" }}
-          />
-          <button
-            type="button"
-            onClick={addBenefit}
-            disabled={!newBenefit.trim()}
-            className="w-full py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition hover:opacity-90 cursor-pointer disabled:opacity-40"
-            style={{ backgroundColor: "var(--guander-mint)", color: "var(--guander-forest)" }}
-          >
-            <Plus size={14} /> Agregar beneficio
-          </button>
-        </div>
-      </div>
     </div>
   );
 
   return (
     <div className="space-y-6">
-      <h1
-        className="text-xl font-bold"
-        style={{ color: "var(--guander-ink)" }}
-      >
-        Planes de Suscripción
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1
+          className="text-xl font-bold"
+          style={{ color: "var(--guander-ink)" }}
+        >
+          Planes de Suscripción
+        </h1>
+      </div>
+
+      <div className="flex items-center justify-end">
+        <button
+          onClick={openAdd}
+          className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 cursor-pointer transition hover:opacity-90"
+          style={{ backgroundColor: "var(--guander-forest)" }}
+        >
+          <Plus size={16} />
+          Nuevo Plan
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedPlans.map((plan) => (
+        {displayedPlans.map((plan) => (
           <div
             key={plan.id_subscription}
             className="bg-white rounded-2xl p-6"
@@ -377,27 +349,22 @@ export default function PlanesClient({
                 </span>
               </div>
             </div>
-              {plan.description && (
-                <p
-                  className="text-sm mb-3"
-                  style={{ color: "var(--guander-muted)" }}
-                >
-                  {plan.description}
-                </p>
-              )}
-              {plan.plan_benefits && parseBenefits(plan.plan_benefits).length > 0 && (
-                <ul className="text-xs mb-4 space-y-1.5" style={{ color: "var(--guander-ink)" }}>
-                  {parseBenefits(plan.plan_benefits).map((b, i) => (
-                    <li key={i} className="flex items-start gap-1.5">
-                      <span style={{ color: "var(--guander-forest)" }} className="shrink-0 mt-0.5">✓</span>
-                      <span>
-                        <span className="font-medium">{b.benefit}</span>
-                        {b.detail && <span className="ml-1" style={{ color: "var(--guander-muted)" }}>— {b.detail}</span>}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <p
+              className="text-sm mb-4"
+              style={{ color: "var(--guander-muted)" }}
+            >
+              {plan.description}
+            </p>
+            {plan.plan_benefits && (
+              <ul className="mb-4 space-y-1">
+                {plan.plan_benefits.split('\n').filter(b => b.trim()).map((benefit, idx) => (
+                  <li key={idx} className="text-sm flex items-start gap-2 text-gray-700">
+                    <span className="text-[var(--guander-forest)] mt-0.5">•</span>
+                    {benefit}
+                  </li>
+                ))}
+              </ul>
+            )}
             <p
               className="text-2xl font-bold mb-4"
               style={{ color: "var(--guander-ink)" }}
@@ -413,15 +380,81 @@ export default function PlanesClient({
             <div className="flex gap-2">
               <button
                 onClick={() => openEdit(plan)}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-1.5 transition hover:opacity-90 cursor-pointer"
+                className="flex-1 py-2 rounded-xl text-sm font-semibold transition hover:opacity-90"
+                style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}
+              >
+                Ver
+              </button>
+              <button
+                onClick={() => openEdit(plan)}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white transition hover:opacity-90"
                 style={{ backgroundColor: "var(--guander-forest)" }}
               >
-                Gestionar <ChevronRight size={14} />
+                Editar
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-6 py-4">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            className="px-4 py-2 bg-white border rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-gray-50 transition-colors"
+            style={{ borderColor: "#c7d8cf", color: "#3a6b52" }}
+          >
+            Anterior
+          </button>
+          <span className="text-sm font-medium" style={{ color: "#3a6b52" }}>
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            className="px-4 py-2 bg-white border rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-gray-50 transition-colors"
+            style={{ borderColor: "#c7d8cf", color: "#3a6b52" }}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
+
+      <Modal open={showAdd} onClose={closeAll}>
+        <div className="p-6 pb-3 flex items-center justify-between">
+          <h2
+            className="text-lg font-bold"
+            style={{ color: "var(--guander-ink)" }}
+          >
+            Crear Plan
+          </h2>
+          <button
+            onClick={closeAll}
+            className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        {renderForm()}
+        <div className="p-6 pt-2 flex gap-3">
+          <button
+            onClick={closeAll}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer hover:opacity-90"
+            style={{ backgroundColor: "#c5cdb3", color: "#3d4f35" }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={saving || !formName.trim() || formAmount.trim() === ""}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition cursor-pointer hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: "var(--guander-forest)" }}
+          >
+            {saving ? "Creando..." : "Crear Plan"}
+          </button>
+        </div>
+      </Modal>
 
       <Modal open={!!editingPlan} onClose={closeAll}>
         <div className="p-6 pb-3 flex items-center justify-between">
@@ -457,8 +490,6 @@ export default function PlanesClient({
           </button>
         </div>
       </Modal>
-
-      <ToastContainer toasts={toasts} dismiss={dismiss} />
     </div>
   );
 }

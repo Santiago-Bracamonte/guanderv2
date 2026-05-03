@@ -58,6 +58,7 @@ CREATE TABLE store_sub (
   state_payout      TEXT NOT NULL,
   expiration_date   TEXT NOT NULL,
   upgrade_date      TEXT NOT NULL,
+  payment_proof     TEXT DEFAULT NULL,
   fk_subscription_id INTEGER NOT NULL,
   FOREIGN KEY (fk_subscription_id) REFERENCES subscription(id_subscription) ON UPDATE CASCADE
 );
@@ -214,6 +215,8 @@ CREATE TABLE sub_payout (
   date           TEXT NOT NULL,
   amount         REAL NOT NULL,
   description    TEXT DEFAULT NULL,
+  proof_url      TEXT DEFAULT NULL,
+  status         TEXT DEFAULT 'pending',
   fk_store_sub   INTEGER NOT NULL,
   fk_user        INTEGER NOT NULL,
   FOREIGN KEY (fk_store_sub) REFERENCES store_sub(id_store_sub) ON UPDATE CASCADE,

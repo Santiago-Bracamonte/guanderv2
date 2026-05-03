@@ -949,6 +949,9 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
   const [sending, setSending] = useState(false);
   const [upgradingPlanId, setUpgradingPlanId] = useState<number | null>(null);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   const currentAmount = data.store.plan_amount ?? 0;
   const sortedPlans = [...data.planOptions].sort((a, b) => a.amount - b.amount);
@@ -1002,6 +1005,93 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
       setUpgradeError("Error de red. Verificá tu conexión e intentá de nuevo.");
     } finally {
       setUpgradingPlanId(null);
+    }
+  }
+
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
+
+  async function handleRenew() {
+    const currentPlan = data.planOptions.find((p) => p.name === data.store.plan_name && p.amount === data.store.plan_amount);
+    if (!currentPlan) {
+      setUpgradeError("No se pudo identificar el plan actual.");
+      return;
+    }
+    setIsRenewing(true);
+    setUpgradeError(null);
+    try {
+      const res = await fetch("/api/store/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: currentPlan.id_subscription,
+          planName: currentPlan.name,
+          planDescription: currentPlan.description,
+          amount: currentPlan.amount,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        setUpgradeError(err.error ?? "No se pudo iniciar la renovación. Intenta de nuevo.");
+        return;
+      }
+      const { checkoutUrl } = await res.json() as { checkoutUrl: string };
+      window.location.href = checkoutUrl;
+    } catch {
+      setUpgradeError("Error de red. Verificá tu conexión e intentá de nuevo.");
+    } finally {
+      setIsRenewing(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (!confirm("¿Estás seguro que deseas cancelar tu suscripción actual? Perderás los beneficios correspondientes a este plan.")) return;
+    setIsCanceling(true);
+    setUpgradeError(null);
+    try {
+      const res = await fetch("/api/store/subscribe/cancel", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        setUpgradeError(err.error ?? "Error al cancelar suscripción");
+        return;
+      }
+      window.location.reload();
+    } catch {
+      setUpgradeError("Error de red. Verificá tu conexión e intentá de nuevo.");
+    } finally {
+      setIsCanceling(false);
+    }
+  }
+
+  async function handleUploadReceipt() {
+    if (!receiptFile) return;
+    setUploadingReceipt(true);
+    setUpgradeError(null);
+    setUploadSuccess(false);
+    try {
+      // Mock File Upload - Generate base64 or object URL
+      const fileUrl = window.URL.createObjectURL(receiptFile);
+      
+      const res = await fetch("/api/store/subscribe/upload-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          proofUrl: fileUrl, 
+          description: `File: ${receiptFile.name}` 
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        setUpgradeError(err.error ?? "Error al subir comprobante");
+        return;
+      }
+      setUploadSuccess(true);
+      setReceiptFile(null);
+    } catch {
+      setUpgradeError("Error de red. Verificá tu conexión e intentá de nuevo.");
+    } finally {
+      setUploadingReceipt(false);
     }
   }
 
@@ -1112,6 +1202,65 @@ function SubscriptionSection({ data }: { data: DashboardData }) {
               </TableBody>
             </Table>
           </Paper>
+
+          {data.store.plan_amount != null && data.store.plan_amount > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <Button
+                  variant="contained"
+                  onClick={() => void handleRenew()}
+                  disabled={isRenewing || isCanceling}
+                  sx={{ bgcolor: "#1f4b3b", "&:hover": { bgcolor: "#173a2d" } }}
+                >
+                  {isRenewing ? "Redirigiendo..." : "Renovar Suscripción"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => void handleCancel()}
+                  disabled={isRenewing || isCanceling}
+                >
+                  {isCanceling ? "Cancelando..." : "Cancelar Suscripción"}
+                </Button>
+              </Stack>
+              
+              <Box sx={{ mt: 3, p: 2, border: '1px dashed #b6d4c2', borderRadius: 2, bgcolor: '#f8fcf9' }}>
+                <Typography variant="subtitle2" sx={{ color: "#173a2d", mb: 1, fontWeight: 'bold' }}>
+                  Subir Comprobante de Pago Manual (PDF, JPG, PNG)
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Button variant="outlined" component="label" disabled={uploadingReceipt}>
+                    Seleccionar Archivo
+                    <input 
+                      type="file" 
+                      hidden 
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                    />
+                  </Button>
+                  <Typography variant="caption">{receiptFile ? receiptFile.name : "Ningún archivo seleccionado"}</Typography>
+                </Stack>
+                {receiptFile && (
+                  <Button 
+                    variant="contained" 
+                    sx={{ mt: 2, bgcolor: "#1f4b3b", "&:hover": { bgcolor: "#173a2d" } }}
+                    onClick={() => void handleUploadReceipt()}
+                    disabled={uploadingReceipt}
+                  >
+                    {uploadingReceipt ? "Subiendo..." : "Confirmar Subida"}
+                  </Button>
+                )}
+                {uploadSuccess && (
+                  <Alert severity="success" sx={{ mt: 2 }}>
+                    Comprobante subido. Esperando aprobación del administrador.
+                  </Alert>
+                )}
+              </Box>
+            </Box>
+          )}
+          {upgradeError && (
+             <Typography color="error" variant="body2" sx={{ mt: 1 }}>{upgradeError}</Typography>
+          )}
         </CardContent>
       </Card>
 

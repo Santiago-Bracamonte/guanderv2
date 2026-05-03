@@ -38,6 +38,12 @@ const navItems = [
     icon: Shield,
   },
   {
+  {
+    label: "Pagos y Aprobaciones",
+    href: "/dashboard/admin/pagos",
+    icon: CreditCard,
+  },
+  {
     label: "Cupones",
     href: "/dashboard/admin/servicios",
     icon: Tag,
