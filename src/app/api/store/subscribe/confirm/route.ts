@@ -22,9 +22,13 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const paymentId = searchParams.get("payment_id");
+  const paymentId =
+    searchParams.get("payment_id") ?? searchParams.get("collection_id");
   if (!paymentId) {
-    return NextResponse.json({ error: "payment_id requerido" }, { status: 400 });
+    return NextResponse.json(
+      { error: "payment_id o collection_id requerido" },
+      { status: 400 },
+    );
   }
 
   const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
@@ -69,7 +73,27 @@ export async function GET(request: NextRequest) {
   await ensureStoreSubPayoutColumn();
 
   const today = new Date();
-  const newExpiry = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+  const currentExpiryRows = await queryD1<{ expiration_date: string | null }>(
+    "SELECT expiration_date FROM store_sub WHERE id_store_sub = ? LIMIT 1",
+    [ctx.context.storeSubId],
+    { revalidate: false },
+  );
+
+  const currentExpiryRaw = currentExpiryRows[0]?.expiration_date ?? null;
+  const baseDate = currentExpiryRaw
+    ? new Date(`${currentExpiryRaw}T00:00:00Z`)
+    : today;
+
+  const effectiveBase = Number.isNaN(baseDate.getTime()) || baseDate < today
+    ? today
+    : baseDate;
+
+  const newExpiry = new Date(Date.UTC(
+    effectiveBase.getUTCFullYear(),
+    effectiveBase.getUTCMonth(),
+    effectiveBase.getUTCDate(),
+  ));
   newExpiry.setUTCMonth(newExpiry.getUTCMonth() + 1);
 
   await queryD1(

@@ -3,6 +3,8 @@ import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const authContext = await getStoreOwnerContext();
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     // Also logically make the store_sub state pending review
     await queryD1(
       `UPDATE store_sub 
-       SET payment_proof = ?, state_payout = 'pending_review' 
+       SET payment_proof = ?, state_payout = 'pendiente' 
        WHERE id_store_sub = ?`,
       [base64File, storeSubId]
     );

@@ -8,9 +8,10 @@ function SuccessContent() {
   const [status, setStatus] = useState("Procesando pago...");
 
   useEffect(() => {
-    const paymentId = searchParams.get("payment_id");
+    const paymentId =
+      searchParams.get("payment_id") ?? searchParams.get("collection_id");
     if (!paymentId) {
-      setStatus("Pago confirmado, pero falta payment_id.");
+      setStatus("Pago confirmado, pero falta payment_id/collection_id.");
       return;
     }
 
