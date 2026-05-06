@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { parseSearchParams } from '@/lib/validation/parse';
 
 interface NominatimEntry {
   display_name?: string;
@@ -8,7 +10,14 @@ interface NominatimEntry {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const q = searchParams.get('q')?.trim() ?? '';
+  const parsed = parseSearchParams(
+    { q: searchParams.get('q') },
+    z.object({ q: z.string().trim().optional() }),
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ suggestions: [] });
+  }
+  const q = parsed.data.q?.trim() ?? '';
 
   if (q.length < 3) {
     return NextResponse.json({ suggestions: [] });

@@ -2,6 +2,8 @@
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import { solicitudesPatchSchema, solicitudesStatusSchema } from "@/lib/validation/admin";
+import { parseJson, parseSearchParams } from "@/lib/validation/parse";
 
 async function ensureRequestsTable() {
   try {
@@ -60,7 +62,14 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const statusFilter = searchParams.get("status"); // pending | approved | rejected | all
+  const parsed = parseSearchParams(
+    { status: searchParams.get("status") },
+    solicitudesStatusSchema,
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+  const statusFilter = parsed.data.status; // pending | approved | rejected | all
 
   await ensureRequestsTable();
 
@@ -93,21 +102,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  let body: {
-    id_request: number;
-    action: "approve" | "reject";
-    notes?: string;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
+  const parsed = await parseJson(request, solicitudesPatchSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { id_request, action, notes } = body;
-  if (!id_request || !["approve", "reject"].includes(action)) {
-    return NextResponse.json({ error: "Parámetros inválidos" }, { status: 400 });
-  }
+  const { id_request, action, notes } = parsed.data;
 
   await ensureRequestsTable();
 
@@ -132,7 +132,7 @@ export async function PATCH(request: Request) {
       `SELECT id_request, fk_user, user_email, business_name, description, address, location,
               fk_category, image_url, schedule_week, schedule_weekend, schedule_sunday, fk_subscription_id, status
        FROM store_registration_requests WHERE id_request = ? LIMIT 1`,
-      [id_request],
+      [id_request] as any[],
       { revalidate: false },
     );
 
@@ -147,7 +147,7 @@ export async function PATCH(request: Request) {
     if (action === "reject") {
       await queryD1(
         `UPDATE store_registration_requests SET status = 'rejected', notes = ? WHERE id_request = ?`,
-        [notes ?? "", id_request],
+        [notes ?? "", id_request] as any[],
         { revalidate: false },
       );
       return NextResponse.json({ success: true, action: "rejected" });
@@ -244,7 +244,7 @@ export async function PATCH(request: Request) {
     // 4. Mark request as approved
     await queryD1(
       `UPDATE store_registration_requests SET status = 'approved', notes = ? WHERE id_request = ?`,
-      [notes ?? "", id_request],
+      [notes ?? "", id_request] as any[],
       { revalidate: false },
     );
 

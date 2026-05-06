@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
+import { uploadPaymentProofSchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
 export const runtime = "nodejs";
 
@@ -18,8 +20,11 @@ export async function POST(request: Request) {
     // Check if it's JSON (base64) or FormData
     const contentType = request.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
-      const body = await request.json();
-      base64File = body.paymentProof;
+      const parsed = await parseJson(request, uploadPaymentProofSchema, "Datos inválidos");
+      if (!parsed.data) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+      }
+      base64File = parsed.data.paymentProof;
     } else if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       const file = formData.get("file") as File;

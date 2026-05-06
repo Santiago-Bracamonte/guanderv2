@@ -1,5 +1,7 @@
 ﻿import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/cloudflare-d1';
+import { adminProfessionalUpdateSchema } from '@/lib/validation/admin';
+import { parseJson } from '@/lib/validation/parse';
 
 export async function GET() {
   try {
@@ -15,29 +17,12 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  let body: {
-    id_professional: number;
-    description?: string;
-    address?: string;
-    location?: string | null;
-    stars?: number | null;
-    accept_point?: number;
-    fk_type_service?: number;
-    schedule_week?: string | null;
-    schedule_weekend?: string | null;
-    schedule_sunday?: string | null;
-    image_url?: string | null;
-  };
-
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, adminProfessionalUpdateSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  if (!body.id_professional) {
-    return NextResponse.json({ error: 'id_professional es requerido' }, { status: 400 });
-  }
+  const body = parsed.data;
 
   try {
     const currentRows = await queryD1<{
@@ -51,7 +36,7 @@ export async function PUT(request: Request) {
       image_url: string | null;
     }>(
       'SELECT description, address, location, stars, accept_point, fk_type_service, fk_schedule, image_url FROM professionals WHERE id_professional = ? LIMIT 1',
-      [body.id_professional],
+      [body.id_professional] as any[],
       { revalidate: false },
     );
 
@@ -92,7 +77,7 @@ export async function PUT(request: Request) {
 
     await queryD1(
       'UPDATE professionals SET description = ?, address = ?, location = ?, stars = ?, accept_point = ?, fk_type_service = ?, image_url = ? WHERE id_professional = ?',
-      [nextDescription, nextAddress, nextLocation, nextStars, nextAcceptPoint, nextTypeService, nextImageUrl, body.id_professional],
+      [nextDescription, nextAddress, nextLocation, nextStars, nextAcceptPoint, nextTypeService, nextImageUrl, body.id_professional] as any[],
       { revalidate: false },
     );
 

@@ -1,15 +1,8 @@
 import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/cloudflare-d1';
 import { ensureSubscriptionBenefitsColumn } from '@/lib/subscription-benefits';
-
-interface SubscriptionPayload {
-  id_subscription?: number;
-  name?: string;
-  description?: string;
-  plan_benefits?: string;
-  state?: string;
-  amount?: number;
-}
+import { subscriptionCreateSchema, subscriptionUpdateSchema } from '@/lib/validation/admin';
+import { parseJson } from '@/lib/validation/parse';
 
 function normalizeState(raw: string | undefined): string {
   const value = (raw ?? '').toLowerCase();
@@ -31,31 +24,20 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: SubscriptionPayload;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, subscriptionCreateSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const name = body.name?.trim();
-  const description = body.description?.trim() ?? '';
-  const planBenefits = body.plan_benefits?.trim() ?? '';
-  const amount = Number(body.amount);
-  const state = normalizeState(body.state);
-
-  if (!name) {
-    return NextResponse.json({ error: 'El nombre del plan es requerido' }, { status: 400 });
-  }
-  if (!Number.isFinite(amount) || amount < 0) {
-    return NextResponse.json({ error: 'El monto del plan es inválido' }, { status: 400 });
-  }
+  const { name, description, plan_benefits, amount, state: rawState } = parsed.data;
+  const planBenefits = plan_benefits?.trim() ?? '';
+  const state = normalizeState(rawState);
 
   try {
     await ensureSubscriptionBenefitsColumn();
     await queryD1(
       'INSERT INTO subscription (name, description, plan_benefits, state, amount) VALUES (?, ?, ?, ?, ?)',
-      [name, description, planBenefits, state, amount],
+      [name, description, planBenefits, state, amount] as any[],
       { revalidate: false },
     );
 
@@ -72,35 +54,21 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  let body: SubscriptionPayload;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, subscriptionUpdateSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const id = Number(body.id_subscription);
-  const name = body.name?.trim();
-  const description = body.description?.trim() ?? '';
-  const planBenefits = body.plan_benefits?.trim() ?? '';
-  const amount = Number(body.amount);
-  const state = normalizeState(body.state);
-
-  if (!Number.isFinite(id) || id <= 0) {
-    return NextResponse.json({ error: 'id_subscription inválido' }, { status: 400 });
-  }
-  if (!name) {
-    return NextResponse.json({ error: 'El nombre del plan es requerido' }, { status: 400 });
-  }
-  if (!Number.isFinite(amount) || amount < 0) {
-    return NextResponse.json({ error: 'El monto del plan es inválido' }, { status: 400 });
-  }
+  const { id_subscription: id, name, description, plan_benefits, amount, state: rawState } =
+    parsed.data;
+  const planBenefits = plan_benefits?.trim() ?? '';
+  const state = normalizeState(rawState);
 
   try {
     await ensureSubscriptionBenefitsColumn();
     await queryD1(
       'UPDATE subscription SET name = ?, description = ?, plan_benefits = ?, state = ?, amount = ? WHERE id_subscription = ?',
-      [name, description, planBenefits, state, amount, id],
+      [name, description, planBenefits, state, amount, id] as any[],
       { revalidate: false },
     );
     return NextResponse.json({ success: true });

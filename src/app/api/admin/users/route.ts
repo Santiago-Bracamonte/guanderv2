@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import {
+  adminUserCreateSchema,
+  adminUserDeleteSchema,
+  adminUserPatchSchema,
+} from "@/lib/validation/admin";
+import { parseJson, parseSearchParams } from "@/lib/validation/parse";
 
 const USER_SELECT = `
   SELECT
@@ -44,37 +50,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: {
-    name?: string;
-    lastName?: string;
-    email?: string;
-    tel?: string;
-    username?: string;
-    rol?: string;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
+  const parsed = await parseJson(request, adminUserCreateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { name, lastName, email, tel, username, rol } = body;
-  if (!name?.trim() || !email?.trim() || !username?.trim()) {
-    return NextResponse.json(
-      { error: "Nombre, email y username son requeridos" },
-      { status: 400 },
-    );
-  }
-  const VALID_ROLES = ["admin", "customer", "store_owner", "professional"];
-  if (rol && !VALID_ROLES.includes(rol)) {
-    return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
-  }
+  const { name, lastName, email, tel, username, rol } = parsed.data;
 
   try {
     const rolName = rol ?? "customer";
     const rolRows = await queryD1<{ id_rol: number }>(
       `SELECT id_rol FROM roles WHERE rol = ? LIMIT 1`,
-      [rolName],
+      [rolName] as any[],
       { revalidate: false },
     );
     const rolId = rolRows[0]?.id_rol;
@@ -83,12 +70,12 @@ export async function POST(request: Request) {
     await queryD1(
       `INSERT INTO user_data (name, last_name, email, tel, address, password_hash)
        VALUES (?, ?, ?, ?, '', NULL)`,
-      [name.trim(), lastName?.trim() ?? "", email.trim(), tel?.trim() ?? ""],
+      [name.trim(), lastName?.trim() ?? "", email.trim(), tel?.trim() ?? ""] as any[],
       { revalidate: false },
     );
     const inserted = await queryD1<{ id_user_data: number }>(
       `SELECT id_user_data FROM user_data WHERE email = ? LIMIT 1`,
-      [email.trim()],
+      [email.trim()] as any[],
       { revalidate: false },
     );
     const userDataId = inserted[0]?.id_user_data;
@@ -97,7 +84,7 @@ export async function POST(request: Request) {
     await queryD1(
       `INSERT INTO users (username, date_reg, state, fk_user_data, fk_rol)
        VALUES (?, CURRENT_TIMESTAMP, 1, ?, ?)`,
-      [username.trim(), userDataId, rolId],
+      [username.trim(), userDataId, rolId] as any[],
       { revalidate: false },
     );
     return NextResponse.json({ success: true });
@@ -112,14 +99,18 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'id es requerido' }, { status: 400 });
-  const userId = Number(id);
-  if (!Number.isInteger(userId) || userId <= 0) {
-    return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
+  const parsed = parseSearchParams(
+    { id: searchParams.get("id") },
+    adminUserDeleteSchema,
+    "Datos inválidos",
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const { id: userId } = parsed.data;
   try {
-    await queryD1('UPDATE users SET state = 0 WHERE id_user = ?', [userId], { revalidate: false });
+    await queryD1('UPDATE users SET state = 0 WHERE id_user = ?', [userId] as any[], { revalidate: false });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('DELETE /api/admin/users error:', err);
@@ -128,27 +119,12 @@ export async function DELETE(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  let body: {
-    id_user?: number;
-    name?: string;
-    lastName?: string;
-    email?: string;
-    tel?: string;
-    state?: number;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
+  const parsed = await parseJson(request, adminUserPatchSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { id_user, name, lastName, email, tel, state } = body;
-  if (!id_user) {
-    return NextResponse.json(
-      { error: "id_user es requerido" },
-      { status: 400 },
-    );
-  }
+  const { id_user, name, lastName, email, tel, state } = parsed.data;
 
   try {
     if (
@@ -158,7 +134,9 @@ export async function PATCH(request: Request) {
       tel !== undefined
     ) {
       const updates: string[] = [];
-      const params: (string | number | null)[] = [];
+      // Cambiamos el tipo a any[] para no tener conflictos con .push()
+      const params: any[] = []; 
+      
       if (name !== undefined) {
         updates.push("name = ?");
         params.push(name.trim());
@@ -175,7 +153,9 @@ export async function PATCH(request: Request) {
         updates.push("tel = ?");
         params.push(tel.trim());
       }
-      params.push(id_user);
+      // Agregamos Number() por seguridad
+      params.push(Number(id_user)); 
+      
       await queryD1(
         `UPDATE user_data SET ${updates.join(", ")}
          WHERE id_user_data = (SELECT fk_user_data FROM users WHERE id_user = ?)`,
@@ -186,7 +166,7 @@ export async function PATCH(request: Request) {
     if (state !== undefined) {
       await queryD1(
         `UPDATE users SET state = ? WHERE id_user = ?`,
-        [state, id_user],
+        [state, id_user] as any[],
         { revalidate: false },
       );
     }

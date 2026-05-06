@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import {
+  categoryCreateSchema,
+  categoryDeleteSchema,
+  categoryUpdateSchema,
+} from "@/lib/validation/admin";
+import { parseJson, parseSearchParams } from "@/lib/validation/parse";
 
 interface CategoryRow {
   id_category: number;
@@ -55,20 +61,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: { name?: string; description?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
+  const parsed = await parseJson(request, categoryCreateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { name, description } = body;
-  if (!name || !name.trim()) {
-    return NextResponse.json(
-      { error: "El nombre es requerido" },
-      { status: 400 },
-    );
-  }
+  const { name, description } = parsed.data;
 
   try {
     // Insert the category
@@ -111,25 +109,17 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  let body: { id?: number; name?: string; description?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
+  const parsed = await parseJson(request, categoryUpdateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { id, name, description } = body;
-  if (!id || !name || !name.trim()) {
-    return NextResponse.json(
-      { error: "ID y nombre son requeridos" },
-      { status: 400 },
-    );
-  }
+  const { id, name, description } = parsed.data;
 
   try {
     await queryD1(
       "UPDATE category SET name = ?, description = ? WHERE id_category = ?",
-      [name.trim(), description?.trim() || "", id],
+      [name.trim(), description?.trim() || "", id] as any[],
       { revalidate: false },
     );
 
@@ -152,11 +142,16 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   const url = new URL(request.url);
-  const id = url.searchParams.get("id");
-
-  if (!id || isNaN(Number(id))) {
-    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  const parsed = parseSearchParams(
+    { id: url.searchParams.get("id") },
+    categoryDeleteSchema,
+    "Datos inválidos",
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const { id } = parsed.data;
 
   try {
     // Check if category is in use

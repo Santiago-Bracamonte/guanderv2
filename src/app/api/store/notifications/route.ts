@@ -6,29 +6,46 @@ import {
   type LimitConfig,
   type PlanTier,
 } from "@/lib/notification-plan-limits";
+// Nota: Asegúrate de que estas utilidades existan en tu carpeta lib
+// Si no existen, puedes reemplazarlas con validación manual
+import { notificationPushSchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
-type PushInput = {
-  title?: string;
-  message?: string;
-  expirationDays?: number;
-};
-
+// Tipos internos
 type StorePlanInfo = {
   name: string;
   amount: number;
   tier: PlanTier;
 };
 
-function toSafeText(value: unknown, maxLength: number): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, maxLength);
-}
+type PushInput = {
+  title: string;
+  message: string;
+  expirationDays?: number;
+};
 
-function toIntInRange(value: unknown, min: number, max: number): number | null {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed)) return null;
-  if (parsed < min || parsed > max) return null;
-  return parsed;
+// Helpers de utilidad (ajustar según tu implementación real)
+const toSafeText = (txt: string, max: number) => txt?.trim().slice(0, max) || "";
+const toIntInRange = (val: any, min: number, max: number) => {
+  const n = parseInt(val);
+  return isNaN(n) ? null : Math.min(Math.max(n, min), max);
+};
+
+// Función para asegurar que la tabla de auditoría existe (si es necesaria)
+async function ensureAuditTable() {
+  await queryD1(
+    `CREATE TABLE IF NOT EXISTS store_push_audit (
+      id_audit INTEGER PRIMARY KEY AUTOINCREMENT,
+      fk_store INTEGER,
+      fk_user INTEGER,
+      title TEXT,
+      body TEXT,
+      recipient_count INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+    { revalidate: false }
+  );
 }
 
 function getTierFromRank(rank: number, totalPlans: number): PlanTier {
@@ -75,25 +92,9 @@ async function resolveStorePlan(storeSubId: number): Promise<StorePlanInfo> {
 
   return {
     name: currentPlan.plan_name,
-    amount: Number(currentPlan.plan_amount),
-    tier,
+    amount: currentPlan.plan_amount,
+    tier: tier,
   };
-}
-
-async function ensureAuditTable(): Promise<void> {
-  await queryD1(
-    `CREATE TABLE IF NOT EXISTS store_push_audit (
-      id_push_audit INTEGER PRIMARY KEY AUTOINCREMENT,
-      fk_store INTEGER NOT NULL,
-      fk_user INTEGER NOT NULL,
-      title TEXT NOT NULL,
-      body TEXT NOT NULL,
-      recipient_count INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )`,
-    [],
-    { revalidate: false },
-  );
 }
 
 async function getRateWindow(storeId: number, limits: LimitConfig) {

@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { queryD1 } from '@/lib/cloudflare-d1';
-
-function safeText(v: unknown, max: number): string {
-  return typeof v === 'string' ? v.trim().slice(0, max) : '';
-}
+import { userMessageSchema } from '@/lib/validation/messages';
+import { parseJson } from '@/lib/validation/parse';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,14 +14,12 @@ export async function POST(req: NextRequest) {
     const user = verifyToken(token);
     if (!user) return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
 
-    const body = (await req.json().catch(() => ({}))) as {
-      subject?: unknown;
-      message?: unknown;
-      ticketId?: unknown;
-    };
+    const parsed = await parseJson(req, userMessageSchema, 'Datos inválidos');
+    if (!parsed.data) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
 
-    const messageText = safeText(body.message, 2000);
-    if (!messageText) return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 });
+    const { subject, message, ticketId } = parsed.data;
 
     // Resolve display name + email from DB
     const userData = await queryD1<{ name: string; last_name: string; email: string }>(
@@ -31,7 +27,7 @@ export async function POST(req: NextRequest) {
        FROM users u
        JOIN user_data ud ON ud.id_user_data = u.fk_user_data
        WHERE u.id_user = ?`,
-      [user.id],
+      [user.id] as any[],
       { revalidate: false },
     );
     const userName = userData[0] ? `${userData[0].name} ${userData[0].last_name}` : user.email;
@@ -39,37 +35,35 @@ export async function POST(req: NextRequest) {
 
     let resolvedTicketId: number;
 
-    if (body.ticketId) {
-      const ticketIdNum = Number(body.ticketId);
-      if (!Number.isInteger(ticketIdNum) || ticketIdNum <= 0)
-        return NextResponse.json({ error: 'ticketId inválido' }, { status: 400 });
-
+    if (ticketId) {
       const existing = await queryD1<{ id_ticket: number }>(
         `SELECT id_ticket FROM support_ticket WHERE id_ticket = ? AND user_id = ?`,
-        [ticketIdNum, user.id],
+        [ticketId, user.id] as any[],
         { revalidate: false },
       );
       if (!existing[0]) return NextResponse.json({ error: 'Ticket no encontrado' }, { status: 404 });
 
-      resolvedTicketId = ticketIdNum;
+      // FIX: Forzamos el tipo a Number para cumplir con el contrato de la variable
+      resolvedTicketId = Number(ticketId);
+      
       await queryD1(
         `UPDATE support_ticket SET updated_at = datetime('now'), status = 'open' WHERE id_ticket = ?`,
-        [ticketIdNum],
+        [ticketId] as any[],
         { revalidate: false },
       );
     } else {
-      const subjectText = safeText(body.subject, 200) || 'Consulta de soporte';
+      const subjectText = subject?.trim() || 'Consulta de soporte';
 
       await queryD1(
         `INSERT INTO support_ticket (user_id, user_role, user_name, user_email, subject)
          VALUES (?, ?, ?, ?, ?)`,
-        [user.id, user.role, userName, userEmail, subjectText],
+        [user.id, user.role, userName, userEmail, subjectText] as any[],
         { revalidate: false },
       );
 
       const newTicket = await queryD1<{ id_ticket: number }>(
         `SELECT id_ticket FROM support_ticket WHERE user_id = ? ORDER BY id_ticket DESC LIMIT 1`,
-        [user.id],
+        [user.id] as any[], // Cambiado de 'as any' a 'as any[]' por consistencia
         { revalidate: false },
       );
       if (!newTicket[0]) throw new Error('No se pudo crear el ticket');
@@ -78,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     await queryD1(
       `INSERT INTO support_message (fk_ticket, sender_role, sender_name, body) VALUES (?, 'user', ?, ?)`,
-      [resolvedTicketId, userName, messageText],
+      [resolvedTicketId, userName, message] as any[], // FIX: Agregado as any[]
       { revalidate: false },
     );
 

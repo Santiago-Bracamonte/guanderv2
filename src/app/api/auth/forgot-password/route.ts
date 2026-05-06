@@ -2,6 +2,8 @@
 import { Resend } from 'resend';
 import jwt from 'jsonwebtoken';
 import { queryD1 } from '@/lib/cloudflare-d1';
+import { forgotPasswordSchema } from '@/lib/validation/auth';
+import { parseJson } from '@/lib/validation/parse';
 
 function escapeHtml(str: string): string {
   return str
@@ -13,22 +15,12 @@ function escapeHtml(str: string): string {
 }
 
 export async function POST(request: Request) {
-  let body: { email?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, forgotPasswordSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const email = body.email?.trim().toLowerCase();
-  if (!email) {
-    return NextResponse.json({ error: 'El email es requerido' }, { status: 400 });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
-  }
+  const { email } = parsed.data;
 
   // Check if user exists (always respond with success to prevent user enumeration)
   try {

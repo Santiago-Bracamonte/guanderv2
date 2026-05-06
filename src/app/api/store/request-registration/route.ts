@@ -2,6 +2,8 @@
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth";
 import { queryD1 } from "@/lib/cloudflare-d1";
+import { requestRegistrationSchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
 async function ensureRequestsTable() {
   try {
@@ -60,40 +62,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  let body: {
-    business_name?: string;
-    description?: string;
-    address?: string;
-    location?: string;
-    fk_category?: number;
-    cuit_cuil?: string;
-    matricula?: string;
-    razon_social?: string;
-    schedule_week?: string;
-    schedule_weekend?: string;
-    schedule_sunday?: string;
-    image_url?: string;
-    fk_subscription_id?: number;
-  };
-
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
+  const parsed = await parseJson(request, requestRegistrationSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  if (!body.business_name?.trim()) {
-    return NextResponse.json(
-      { error: "El nombre del local es requerido" },
-      { status: 400 },
-    );
-  }
-  if (!body.address?.trim()) {
-    return NextResponse.json(
-      { error: "La dirección es requerida" },
-      { status: 400 },
-    );
-  }
+  const body = parsed.data;
 
   try {
     await ensureRequestsTable();
@@ -142,7 +116,7 @@ export async function POST(request: Request) {
         body.schedule_sunday?.trim() ?? "",
         body.image_url?.trim() ?? null,
         body.fk_subscription_id ?? null,
-      ],
+      ] as any[],
       { revalidate: false },
     );
 

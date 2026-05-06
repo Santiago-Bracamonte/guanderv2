@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { queryD1 } from '@/lib/cloudflare-d1';
+import { adminMessageSchema } from '@/lib/validation/messages';
+import { parseJson } from '@/lib/validation/parse';
 
 async function getAdminUser() {
   const cookieStore = await cookies();
@@ -73,24 +75,16 @@ export async function POST(req: NextRequest) {
     const admin = await getAdminUser();
     if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
 
-    const body = (await req.json().catch(() => ({}))) as {
-      ticketId?: unknown;
-      message?: unknown;
-      status?: unknown;
-    };
+    const parsed = await parseJson(req, adminMessageSchema, 'Datos inválidos');
+    if (!parsed.data) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
 
-    const ticketIdNum = Number(body.ticketId);
-    if (!Number.isInteger(ticketIdNum) || ticketIdNum <= 0)
-      return NextResponse.json({ error: 'ticketId requerido' }, { status: 400 });
-
-    const messageText =
-      typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
-    if (!messageText)
-      return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 });
+    const { ticketId, message, status } = parsed.data;
 
     const ticket = await queryD1<{ id_ticket: number }>(
       `SELECT id_ticket FROM support_ticket WHERE id_ticket = ?`,
-      [ticketIdNum],
+      [ticketId] as any[],
       { revalidate: false },
     );
     if (!ticket[0]) return NextResponse.json({ error: 'Ticket no encontrado' }, { status: 404 });
@@ -98,14 +92,14 @@ export async function POST(req: NextRequest) {
     await queryD1(
       `INSERT INTO support_message (fk_ticket, sender_role, sender_name, body)
        VALUES (?, 'admin', 'Soporte Guander', ?)`,
-      [ticketIdNum, messageText],
+      [ticketId, message] as any[],
       { revalidate: false },
     );
 
-    const newStatus = body.status === 'closed' ? 'closed' : 'answered';
+    const newStatus = status === 'closed' ? 'closed' : 'answered';
     await queryD1(
       `UPDATE support_ticket SET updated_at = datetime('now'), status = ? WHERE id_ticket = ?`,
-      [newStatus, ticketIdNum],
+      [newStatus, ticketId] as any[],
       { revalidate: false },
     );
 

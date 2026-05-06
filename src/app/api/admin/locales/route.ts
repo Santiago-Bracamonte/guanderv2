@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { queryD1 } from '@/lib/cloudflare-d1';
+import {
+  adminStoreCreateSchema,
+  adminStoreDeleteSchema,
+  adminStoreUpdateSchema,
+} from '@/lib/validation/admin';
+import { parseJson, parseSearchParams } from '@/lib/validation/parse';
 
 function parseLatLng(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -67,26 +73,13 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: {
-    name?: string;
-    description?: string;
-    address?: string;
-    location?: string | null;
-    fk_category?: number;
-    stars?: number;
-    user_email?: string;
-    image_url?: string;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, adminStoreCreateSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { name, description, address, location, fk_category, stars, user_email, image_url } = body;
-  if (!name) {
-    return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 });
-  }
+  const { name, description, address, location, fk_category, stars, user_email, image_url } =
+    parsed.data;
 
   try {
     await ensureImageUrlColumn();
@@ -98,7 +91,7 @@ export async function POST(request: Request) {
         `SELECT u.id_user FROM users u
          JOIN user_data ud ON u.fk_user_data = ud.id_user_data
          WHERE ud.email = ? LIMIT 1`,
-        [user_email],
+        [user_email] as any[],
         { revalidate: false },
       );
       if (userRows.length > 0) fk_user = userRows[0].id_user;
@@ -140,13 +133,13 @@ export async function POST(request: Request) {
         fk_schedule,
         fk_store_sub_id,
         image_url ?? null,
-      ],
+      ] as any[],
       { revalidate: false },
     );
 
     const newRows = await queryD1<{ id_store: number }>(
       'SELECT id_store FROM stores WHERE name = ? ORDER BY id_store DESC LIMIT 1',
-      [name],
+      [name] as any[],
       { revalidate: false },
     );
 
@@ -158,28 +151,12 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  let body: {
-    id_store: number;
-    name?: string;
-    description?: string;
-    address?: string;
-    location?: string | null;
-    stars?: number;
-    fk_category?: number;
-    image_url?: string;
-    schedule_week?: string | null;
-    schedule_weekend?: string | null;
-    schedule_sunday?: string | null;
-  };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, adminStoreUpdateSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  if (!body.id_store) {
-    return NextResponse.json({ error: 'id_store es requerido' }, { status: 400 });
-  }
+  const body = parsed.data;
 
   try {
     await ensureImageUrlColumn();
@@ -194,7 +171,7 @@ export async function PUT(request: Request) {
       image_url: string | null;
     }>(
       'SELECT name, description, address, location, stars, fk_category, image_url FROM stores WHERE id_store = ? LIMIT 1',
-      [body.id_store],
+      [body.id_store] as any[],
       { revalidate: false },
     );
 
@@ -225,7 +202,7 @@ export async function PUT(request: Request) {
         nextCategory,
         nextImage,
         body.id_store,
-      ],
+      ] as any[],
       { revalidate: false },
     );
 
@@ -234,14 +211,14 @@ export async function PUT(request: Request) {
       try {
         const storeRows = await queryD1<{ fk_schedule: number }>(
           'SELECT fk_schedule FROM stores WHERE id_store = ? LIMIT 1',
-          [body.id_store],
+          [body.id_store] as any[],
           { revalidate: false },
         );
         const schedId = storeRows[0]?.fk_schedule;
         if (schedId) {
           await queryD1(
             'UPDATE schedule SET week = COALESCE(?, week), weekend = COALESCE(?, weekend), sunday = COALESCE(?, sunday) WHERE id_schedule = ?',
-            [body.schedule_week ?? null, body.schedule_weekend ?? null, body.schedule_sunday ?? null, schedId],
+            [body.schedule_week ?? null, body.schedule_weekend ?? null, body.schedule_sunday ?? null, schedId] as any[],
             { revalidate: false },
           );
         }
@@ -256,12 +233,16 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
-  const action = searchParams.get('action'); // 'delete' | 'deactivate' | 'activate'
-
-  if (!id) {
-    return NextResponse.json({ error: 'id es requerido' }, { status: 400 });
+  const parsed = parseSearchParams(
+    { id: searchParams.get('id'), action: searchParams.get('action') },
+    adminStoreDeleteSchema,
+    'Datos inválidos',
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const { id, action } = parsed.data;
 
   try {
     if (action === 'deactivate' || action === 'activate') {
@@ -269,12 +250,12 @@ export async function DELETE(request: Request) {
       // Deactivate/activate the store owner's user account
       await queryD1(
         'UPDATE users SET state = ? WHERE id_user = (SELECT fk_user FROM stores WHERE id_store = ?)',
-        [newState, Number(id)],
+        [newState, Number(id)] as any[],
         { revalidate: false },
       );
       return NextResponse.json({ success: true });
     }
-    await queryD1('DELETE FROM stores WHERE id_store = ?', [Number(id)], { revalidate: false });
+    await queryD1('DELETE FROM stores WHERE id_store = ?', [Number(id)] as any[], { revalidate: false });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: true, simulated: true });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CloudflareD1Error, queryD1 } from "@/lib/cloudflare-d1";
 import { comparePassword, generateToken } from "@/lib/auth";
+import { loginSchema } from "@/lib/validation/auth";
+import { parseJson } from "@/lib/validation/parse";
 
 interface UserRow {
   id_user?: number;
@@ -15,17 +17,18 @@ interface UserRow {
 const ALLOWED_ROLES = ["admin", "professional", "store_owner"];
 
 export async function POST(request: NextRequest) {
+  const parsed = await parseJson(
+    request,
+    loginSchema,
+    "Datos inválidos recibidos",
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  const { email, password } = parsed.data;
+
   try {
-    const body = await request.json();
-    const { email, password } = body;
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email y contraseña requeridos" },
-        { status: 400 },
-      );
-    }
-
     // Query user with role - JOIN user_data and roles
     const users = await queryD1<UserRow>(
       `SELECT u.id_user, u.username, ud.email, ud.password_hash, ud.name, ud.last_name, r.rol 
@@ -106,14 +109,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Error en la base de datos. Intenta más tarde." },
         { status: 503 },
-      );
-    }
-
-    if (error instanceof Error && error.message.includes("JSON")) {
-      console.error("JSON parsing error:", error.message);
-      return NextResponse.json(
-        { error: "Datos inválidos recibidos" },
-        { status: 400 },
       );
     }
 

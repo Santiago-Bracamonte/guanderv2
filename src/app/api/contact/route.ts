@@ -1,26 +1,17 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { contactSchema } from '@/lib/validation/contact';
+import { parseJson } from '@/lib/validation/parse';
 
 const CONTACT_TO = 'tomas.gonzalezz@davinci.edu.ar';
 
 export async function POST(request: Request) {
-  let body: { name?: string; email?: string; subject?: string; message?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, contactSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { name, email, subject, message } = body;
-
-  if (!name?.trim() || !email?.trim() || !message?.trim()) {
-    return NextResponse.json({ error: 'Nombre, email y mensaje son requeridos' }, { status: 400 });
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email.trim())) {
-    return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
-  }
+  const { name, email, subject, message } = parsed.data;
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {

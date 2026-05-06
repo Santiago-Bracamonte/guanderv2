@@ -2,50 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { CloudflareD1Error, queryD1 } from "@/lib/cloudflare-d1";
 import { hashPassword, generateToken } from "@/lib/auth";
 import { Resend } from "resend";
+import { registerSchema } from "@/lib/validation/auth";
+import { parseJson } from "@/lib/validation/parse";
 
 interface RoleRow {
   id_rol?: number;
   rol: string;
 }
 
-const ALLOWED_REGISTER_ROLES = ["professional", "store_owner"];
-
 export async function POST(request: NextRequest) {
+  const parsed = await parseJson(request, registerSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  const { email, password, role, name, lastName, tel, address } = parsed.data;
+
   try {
-    const body = await request.json();
-    const {
-      email,
-      password,
-      confirmPassword,
-      role,
-      name,
-      lastName,
-      tel,
-      address,
-    } = body;
-
-    // Validate input
-    if (!email || !password || !confirmPassword || !role) {
-      return NextResponse.json(
-        { error: "Email, contraseña y rol requeridos" },
-        { status: 400 },
-      );
-    }
-
-    if (password !== confirmPassword) {
-      return NextResponse.json(
-        { error: "Las contraseñas no coinciden" },
-        { status: 400 },
-      );
-    }
-
-    if (!ALLOWED_REGISTER_ROLES.includes(role)) {
-      return NextResponse.json(
-        { error: "Solo clientes y profesionales pueden registrarse" },
-        { status: 403 },
-      );
-    }
-
     // Check if email already exists
     const existingUsers = await queryD1<{ email: string }>(
       "SELECT email FROM user_data WHERE email = ?",
@@ -124,13 +97,7 @@ export async function POST(request: NextRequest) {
 
     const newUserId = newUsers[0].id_user;
 
-    // If customer, create customer record with 0 points
-    if (role === "customer") {
-      await queryD1(
-        "INSERT INTO customer (points, fk_user) VALUES (0, ?)",
-        [newUserId || 0],
-      );
-    }
+   
 
     // Generate token
     const token = generateToken({
@@ -223,14 +190,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Error en la base de datos. Intenta más tarde." },
         { status: 503 },
-      );
-    }
-
-    if (error instanceof Error && error.message.includes("JSON")) {
-      console.error("JSON parsing error:", error.message);
-      return NextResponse.json(
-        { error: "Datos inválidos recibidos" },
-        { status: 400 },
       );
     }
 

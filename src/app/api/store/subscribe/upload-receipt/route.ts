@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
+import { uploadReceiptSchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
 export async function POST(request: NextRequest) {
   const ctx = await getStoreOwnerContext();
@@ -9,17 +11,12 @@ export async function POST(request: NextRequest) {
   const userId = ctx.context.userId;
   const storeSubId = ctx.context.storeSubId;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  const parsed = await parseJson(request, uploadReceiptSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { proofUrl, description } = body;
-  if (!proofUrl) {
-    return NextResponse.json({ error: "No proofURL provided" }, { status: 400 });
-  }
+  const { proofUrl, description } = parsed.data;
 
   await ensureSubPayoutTable();
   await ensureStoreSubPayoutColumn();

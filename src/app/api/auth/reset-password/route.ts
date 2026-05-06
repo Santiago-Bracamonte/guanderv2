@@ -2,23 +2,16 @@
 import jwt from 'jsonwebtoken';
 import { queryD1 } from '@/lib/cloudflare-d1';
 import { hashPassword } from '@/lib/auth';
+import { resetPasswordSchema } from '@/lib/validation/auth';
+import { parseJson } from '@/lib/validation/parse';
 
 export async function POST(request: Request) {
-  let body: { token?: string; password?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, resetPasswordSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { token, password } = body;
-
-  if (!token?.trim()) {
-    return NextResponse.json({ error: 'Token requerido' }, { status: 400 });
-  }
-  if (!password || password.length < 6) {
-    return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres' }, { status: 400 });
-  }
+  const { token, password } = parsed.data;
 
   const jwtSecret = process.env.JWT_SECRET || 'dev-insecure-jwt-secret-change-me';
 

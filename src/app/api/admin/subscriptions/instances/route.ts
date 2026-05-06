@@ -2,6 +2,13 @@
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { queryD1 } from '@/lib/cloudflare-d1';
+import { z } from 'zod';
+import { positiveIntSchema } from '@/lib/validation/common';
+import {
+  subscriptionInstancePaymentSchema,
+  subscriptionInstanceUpdateSchema,
+} from '@/lib/validation/admin';
+import { parseJson, parseSearchParams } from '@/lib/validation/parse';
 
 async function requireAdmin() {
   const cookieStore = await cookies();
@@ -17,7 +24,17 @@ export async function GET(request: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
+  const idParam = searchParams.get('id');
+  const parsed = idParam
+    ? parseSearchParams(
+        { id: idParam },
+        z.object({ id: positiveIntSchema('id') }),
+      )
+    : null;
+  if (parsed && !parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+  const id = parsed?.data?.id ?? null;
 
   // Fetch payout history for a specific instance
   if (id) {
@@ -130,43 +147,29 @@ export async function PUT(request: NextRequest) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  let body: {
-    id_store_sub?: number;
-    state_payout?: string;
-    expiration_date?: string;
-    fk_subscription_id?: number;
-  };
-  try { body = await request.json(); } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, subscriptionInstanceUpdateSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { id_store_sub, state_payout, expiration_date, fk_subscription_id } = body;
-  if (!id_store_sub) return NextResponse.json({ error: 'id_store_sub requerido' }, { status: 400 });
+  const { id_store_sub, state_payout, expiration_date, fk_subscription_id } = parsed.data;
 
   const updates: string[] = [];
   const args: (string | number)[] = [];
 
   if (state_payout) {
-    const valid = ['activo', 'inactivo', 'pendiente', 'vencido'];
-    if (!valid.includes(state_payout.toLowerCase())) {
-      return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
-    }
     updates.push('state_payout = ?');
     args.push(state_payout.toLowerCase());
   }
 
   if (expiration_date) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiration_date)) {
-      return NextResponse.json({ error: 'Fecha inválida (YYYY-MM-DD)' }, { status: 400 });
-    }
     updates.push('expiration_date = ?');
     args.push(expiration_date);
   }
 
   if (fk_subscription_id) {
     updates.push('fk_subscription_id = ?');
-    args.push(fk_subscription_id);
-    // Also update upgrade_date
+    args.push(Number(fk_subscription_id));    
     updates.push('upgrade_date = ?');
     args.push(new Date().toISOString().slice(0, 10));
   }
@@ -175,7 +178,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'No hay campos para actualizar' }, { status: 400 });
   }
 
-  args.push(id_store_sub);
+args.push(Number(id_store_sub));
   await queryD1(
     `UPDATE store_sub SET ${updates.join(', ')} WHERE id_store_sub = ?`,
     args,
@@ -190,26 +193,13 @@ export async function POST(request: NextRequest) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  let body: {
-    id_store_sub?: number;
-    amount?: number;
-    date?: string;
-    description?: string;
-  };
-  try { body = await request.json(); } catch {
-    return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const parsed = await parseJson(request, subscriptionInstancePaymentSchema, 'Datos inválidos');
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { id_store_sub, amount, date, description } = body;
-  if (!id_store_sub) return NextResponse.json({ error: 'id_store_sub requerido' }, { status: 400 });
-  if (!amount || !Number.isFinite(amount) || amount <= 0) {
-    return NextResponse.json({ error: 'Monto inválido' }, { status: 400 });
-  }
-
+  const { id_store_sub, amount, date, description } = parsed.data;
   const payDate = date ?? new Date().toISOString().slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(payDate)) {
-    return NextResponse.json({ error: 'Fecha inválida (YYYY-MM-DD)' }, { status: 400 });
-  }
 
   // Resolve admin user id from session
   const adminRows = await queryD1<{ id_user: number }>(
@@ -229,14 +219,14 @@ export async function POST(request: NextRequest) {
   await queryD1(
     `INSERT INTO sub_payout (date, amount, description, fk_store_sub, fk_user)
      VALUES (?, ?, ?, ?, ?)`,
-    [payDate, amount, description ?? null, id_store_sub, adminUserId],
+    [payDate, amount, description ?? null, id_store_sub, adminUserId] as any[],
     { revalidate: false },
   );
 
   // Auto-extend expiration if the subscription was expired at the time of payment
   const subRows = await queryD1<{ expiration_date: string }>(
     'SELECT expiration_date FROM store_sub WHERE id_store_sub = ? LIMIT 1',
-    [id_store_sub],
+    [id_store_sub] as any[],
     { revalidate: false },
   );
   const currentExpiry = subRows[0]?.expiration_date;
@@ -246,7 +236,7 @@ export async function POST(request: NextRequest) {
     const newExpiry = base.toISOString().slice(0, 10);
     await queryD1(
       'UPDATE store_sub SET expiration_date = ? WHERE id_store_sub = ?',
-      [newExpiry, id_store_sub],
+      [newExpiry, id_store_sub] as any[],
       { revalidate: false },
     );
   }

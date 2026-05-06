@@ -1,27 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
-
-type ServiceInput = {
-  idProfessional?: number;
-  description?: string;
-  address?: string;
-  location?: string;
-  acceptPoint?: boolean;
-  typeServiceId?: number;
-  scheduleId?: number;
-};
-
-function toSafeText(value: unknown, maxLength: number): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, maxLength);
-}
-
-function toPositiveInt(value: unknown): number | null {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) return null;
-  return parsed;
-}
+import {
+  serviceCreateSchema,
+  serviceDeleteSchema,
+  serviceUpdateSchema,
+} from "@/lib/validation/store";
+import { parseJson, parseSearchParams } from "@/lib/validation/parse";
 
 export async function GET() {
   const auth = await getStoreOwnerContext();
@@ -93,26 +78,14 @@ export async function POST(request: NextRequest) {
 
   const { context } = auth;
 
-  let body: ServiceInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, serviceCreateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const description = toSafeText(body.description, 400);
-  const address = toSafeText(body.address, 200);
-  const location = toSafeText(body.location, 120);
-  const typeServiceId = toPositiveInt(body.typeServiceId);
-  const scheduleId = toPositiveInt(body.scheduleId);
-  const acceptPoint = body.acceptPoint ? 1 : 0;
-
-  if (!description || !typeServiceId || !scheduleId) {
-    return NextResponse.json(
-      { error: "description, typeServiceId y scheduleId son obligatorios" },
-      { status: 400 },
-    );
-  }
+  const { description, address, location, typeServiceId, scheduleId, acceptPoint } =
+    parsed.data;
+  const acceptPointValue = acceptPoint ? 1 : 0;
 
   await queryD1(
     `INSERT INTO professionals (
@@ -129,14 +102,14 @@ export async function POST(request: NextRequest) {
     [
       description,
       address || context.storeName,
-      acceptPoint,
+      acceptPointValue,
       location || "0,0",
       0,
       scheduleId,
       typeServiceId,
       context.userId,
       context.storeSubId,
-    ],
+    ] as any[],
     { revalidate: false },
   );
 
@@ -149,27 +122,21 @@ export async function PUT(request: NextRequest) {
 
   const { context } = auth;
 
-  let body: ServiceInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, serviceUpdateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const idProfessional = toPositiveInt(body.idProfessional);
-  const description = toSafeText(body.description, 400);
-  const address = toSafeText(body.address, 200);
-  const location = toSafeText(body.location, 120);
-  const typeServiceId = toPositiveInt(body.typeServiceId);
-  const scheduleId = toPositiveInt(body.scheduleId);
-  const acceptPoint = body.acceptPoint ? 1 : 0;
-
-  if (!idProfessional || !description || !typeServiceId || !scheduleId) {
-    return NextResponse.json(
-      { error: "idProfessional, description, typeServiceId y scheduleId son obligatorios" },
-      { status: 400 },
-    );
-  }
+  const {
+    idProfessional,
+    description,
+    address,
+    location,
+    typeServiceId,
+    scheduleId,
+    acceptPoint,
+  } = parsed.data;
+  const acceptPointValue = acceptPoint ? 1 : 0;
 
   const existing = await queryD1<{ id_professional: number }>(
     `SELECT id_professional
@@ -177,7 +144,7 @@ export async function PUT(request: NextRequest) {
      WHERE id_professional = ?
        AND fk_store_sub_id = ?
      LIMIT 1`,
-    [idProfessional, context.storeSubId],
+    [idProfessional, context.storeSubId] as any[],
     { revalidate: false },
   );
 
@@ -202,12 +169,12 @@ export async function PUT(request: NextRequest) {
       description,
       address || context.storeName,
       location || "0,0",
-      acceptPoint,
+      acceptPointValue,
       typeServiceId,
       scheduleId,
       idProfessional,
       context.storeSubId,
-    ],
+    ] as any[],
     { revalidate: false },
   );
 
@@ -221,11 +188,16 @@ export async function DELETE(request: NextRequest) {
   const { context } = auth;
 
   const { searchParams } = new URL(request.url);
-  const idProfessional = toPositiveInt(searchParams.get("idProfessional"));
-
-  if (!idProfessional) {
-    return NextResponse.json({ error: "idProfessional es obligatorio" }, { status: 400 });
+  const parsed = parseSearchParams(
+    { idProfessional: searchParams.get("idProfessional") },
+    serviceDeleteSchema,
+    "Datos inválidos",
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const { idProfessional } = parsed.data;
 
   const existing = await queryD1<{ id_professional: number }>(
     `SELECT id_professional
@@ -233,7 +205,7 @@ export async function DELETE(request: NextRequest) {
      WHERE id_professional = ?
        AND fk_store_sub_id = ?
      LIMIT 1`,
-    [idProfessional, context.storeSubId],
+    [idProfessional, context.storeSubId] as any[],
     { revalidate: false },
   );
 
@@ -248,7 +220,7 @@ export async function DELETE(request: NextRequest) {
     `DELETE FROM professionals
      WHERE id_professional = ?
        AND fk_store_sub_id = ?`,
-    [idProfessional, context.storeSubId],
+    [idProfessional, context.storeSubId] as any[],
     { revalidate: false },
   );
 

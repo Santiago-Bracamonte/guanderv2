@@ -1,25 +1,15 @@
 import { NextResponse } from "next/server";
 import { verifyAdmin } from "@/lib/admin-auth";
+import { adminLoginSchema } from "@/lib/validation/admin";
+import { parseJson } from "@/lib/validation/parse";
 
 export async function POST(request: Request) {
-  let body: { email?: string; password?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Cuerpo de solicitud inválido" },
-      { status: 400 },
-    );
+  const parsed = await parseJson(request, adminLoginSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { email, password } = body;
-
-  if (!email || !password) {
-    return NextResponse.json(
-      { error: "Email y contraseña requeridos" },
-      { status: 400 },
-    );
-  }
+  const { email, password } = parsed.data;
 
   const admin = await verifyAdmin(email, password);
 

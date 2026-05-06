@@ -2,22 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 import { ensureStoreReviewRepliesTable } from "@/lib/store-review-replies";
-
-type ReplyInput = {
-  commentId?: number;
-  body?: string;
-};
-
-function toPositiveInt(value: unknown): number | null {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) return null;
-  return parsed;
-}
-
-function toSafeText(value: unknown, maxLength: number): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, maxLength);
-}
+import { reviewReplySchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
 export async function POST(request: NextRequest) {
   const auth = await getStoreOwnerContext();
@@ -25,22 +11,12 @@ export async function POST(request: NextRequest) {
 
   const { context } = auth;
 
-  let body: ReplyInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, reviewReplySchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const commentId = toPositiveInt(body.commentId);
-  const replyBody = toSafeText(body.body, 600);
-
-  if (!commentId || !replyBody) {
-    return NextResponse.json(
-      { error: "commentId y body son obligatorios" },
-      { status: 400 },
-    );
-  }
+  const { commentId, body: replyBody } = parsed.data;
 
   await ensureStoreReviewRepliesTable();
 
@@ -56,7 +32,7 @@ export async function POST(request: NextRequest) {
     WHERE cs.id_comment = ?
       AND cs.fk_store_id = ?
     LIMIT 1`,
-    [commentId, context.storeId],
+    [commentId, context.storeId] as any[],
     { revalidate: false },
   );
 
@@ -71,7 +47,7 @@ export async function POST(request: NextRequest) {
   await queryD1(
     `INSERT INTO comments_store_reply (fk_comment_store, fk_store_user, body)
      VALUES (?, ?, ?)`,
-    [commentId, context.userId, replyBody],
+    [commentId, context.userId, replyBody] as any[],
     { revalidate: false },
   );
 
@@ -94,7 +70,7 @@ export async function POST(request: NextRequest) {
       AND csr.fk_store_user = ?
     ORDER BY csr.id_comment_reply DESC
     LIMIT 1`,
-    [commentId, context.userId],
+    [commentId, context.userId] as any[],
     { revalidate: false },
   );
 

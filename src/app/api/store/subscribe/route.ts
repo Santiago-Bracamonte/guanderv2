@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
+import { subscriptionPreferenceSchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
 type PreferenceItem = {
   id: string;
@@ -34,24 +36,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  const parsed = await parseJson(request, subscriptionPreferenceSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { planId, planName, planDescription, amount } = body as Record<string, unknown>;
-
-  if (
-    typeof planId !== "number" ||
-    typeof planName !== "string" ||
-    !planName.trim() ||
-    typeof amount !== "number" ||
-    amount <= 0
-  ) {
-    return NextResponse.json({ error: "Invalid plan data." }, { status: 400 });
-  }
+  const { planId, planName, planDescription, amount } = parsed.data;
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
@@ -66,7 +56,7 @@ export async function POST(request: NextRequest) {
             : `Suscripcion al plan ${planName.trim()} de Guander`,
         quantity: 1,
         currency_id: "ARS",
-        unit_price: Math.round(amount),
+        unit_price: Math.round(Number(amount)),
       },
     ],
     back_urls: {

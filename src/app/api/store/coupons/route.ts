@@ -1,52 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
-
-type CouponInput = {
-  idCoupon?: number;
-  name?: string;
-  description?: string;
-  expirationDate?: string;
-  pointReq?: number;
-  amount?: number;
-  codeCoupon?: string;
-  couponStateId?: number;
-  enabled?: boolean;
-};
-
-function toSafeText(value: unknown, maxLength: number): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, maxLength);
-}
-
-function toPositiveInt(value: unknown): number | null {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) return null;
-  return parsed;
-}
-
-function toNonNegativeInt(value: unknown): number | null {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) return null;
-  return parsed;
-}
-
-function toPositiveAmount(value: unknown): number | null {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100) return null;
-  return Math.round(parsed);
-}
-
-function normalizeDate(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
-
-  const date = new Date(`${trimmed}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return null;
-
-  return trimmed;
-}
+import {
+  couponCreateSchema,
+  couponDeleteSchema,
+  couponUpdateSchema,
+} from "@/lib/validation/store";
+import { parseJson, parseSearchParams } from "@/lib/validation/parse";
 
 function toCodeChunk(value: string, fallback: string): string {
   const cleaned = value
@@ -100,7 +60,7 @@ async function generateUniqueCode(table: "coupon_store" | "coupon_prof" = "coupo
     const candidate = randomCode();
     const existing = await queryD1<{ id_coupon: number }>(
       `SELECT id_coupon FROM ${table} WHERE code_coupon = ? LIMIT 1`,
-      [candidate],
+      [candidate] as any[],
       { revalidate: false },
     );
     if (existing.length === 0) {
@@ -120,7 +80,7 @@ async function ensureUniqueCouponCode(
     const candidate = i === 0 ? desiredCode : randomCode();
     const existing = await queryD1<{ id_coupon: number }>(
       `SELECT id_coupon FROM ${table} WHERE code_coupon = ? LIMIT 1`,
-      [candidate],
+      [candidate] as any[],
       { revalidate: false },
     );
 
@@ -173,7 +133,7 @@ export async function GET() {
         LEFT JOIN coupon_state cst ON cst.id_coupon_state = cp.fk_coupon_state
         WHERE cp.fk_professional_id = ?
         ORDER BY cp.id_coupon DESC`,
-        [context.professionalId],
+        [context.professionalId] as any[],
         { revalidate: false },
       )
     : queryD1<{
@@ -210,7 +170,7 @@ export async function GET() {
         ) cbs ON cbs.fk_coupon_id = cs.id_coupon
         WHERE cs.fk_store = ?
         ORDER BY cs.id_coupon DESC`,
-        [context.storeId],
+        [context.storeId] as any[],
         { revalidate: false },
       );
 
@@ -237,7 +197,7 @@ export async function GET() {
 
         await queryD1(
           `UPDATE ${table} SET code_coupon = ? WHERE id_coupon = ? AND ${ownerCol} = ?`,
-          [normalizedCode, coupon.id_coupon, ownerId],
+          [normalizedCode, coupon.id_coupon, ownerId] as any[],
           { revalidate: false },
         );
       }
@@ -272,28 +232,23 @@ export async function POST(request: NextRequest) {
   const isProf = context.role === "professional" && context.professionalId;
   const table = isProf ? "coupon_prof" : "coupon_store";
 
-  let body: CouponInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, couponCreateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const name = toSafeText(body.name, 120);
-  const description = toSafeText(body.description, 350);
-  const expirationDate = normalizeDate(body.expirationDate);
-  const pointReq = toNonNegativeInt(body.pointReq);
-  const amount = toPositiveAmount(body.amount);
-  const explicitCode = toSafeText(body.codeCoupon, 80);
+  const {
+    name,
+    description,
+    expirationDate,
+    pointReq,
+    amount,
+    codeCoupon: explicitCode,
+    couponStateId: couponStateIdRaw,
+    enabled,
+  } = parsed.data;
 
-  if (!name || !description || !expirationDate || pointReq === null || amount === null) {
-    return NextResponse.json(
-      { error: "name, description, expirationDate, pointReq y amount son obligatorios" },
-      { status: 400 },
-    );
-  }
-
-  const couponStateId = toPositiveInt(body.couponStateId) ?? (await findDefaultCouponStateId());
+  const couponStateId = couponStateIdRaw ?? (await findDefaultCouponStateId());
   if (!couponStateId) {
     return NextResponse.json(
       { error: "No existe configuracion de estados de cupon (coupon_state)" },
@@ -301,8 +256,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let codeCoupon = explicitCode;
-  if (!codeCoupon) {
+  let codeCoupon = explicitCode ?? "";
+  if (!codeCoupon.trim()) {
     codeCoupon = await generateUniqueCode(table);
   } else {
     codeCoupon = normalizeCouponCode(codeCoupon);
@@ -332,7 +287,7 @@ export async function POST(request: NextRequest) {
           amount,
           context.professionalId,
           couponStateId,
-        ],
+        ] as any[],
         { revalidate: false },
       );
     } else {
@@ -351,14 +306,14 @@ export async function POST(request: NextRequest) {
         [
           name,
           description,
-          body.enabled === false ? 0 : 1,
+          enabled === false ? 0 : 1,
           expirationDate,
           pointReq,
           codeCoupon,
           amount,
           context.storeId,
           couponStateId,
-        ],
+        ] as any[],
         { revalidate: false },
       );
     }
@@ -383,44 +338,27 @@ export async function PUT(request: NextRequest) {
   const ownerCol = isProf ? "fk_professional_id" : "fk_store";
   const ownerId = isProf ? context.professionalId : context.storeId;
 
-  let body: CouponInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, couponUpdateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const idCoupon = toPositiveInt(body.idCoupon);
-  const name = toSafeText(body.name, 120);
-  const description = toSafeText(body.description, 350);
-  const expirationDate = normalizeDate(body.expirationDate);
-  const pointReq = toNonNegativeInt(body.pointReq);
-  const amount = toPositiveAmount(body.amount);
-  const couponStateId = toPositiveInt(body.couponStateId);
-  const explicitCode = toSafeText(body.codeCoupon, 80);
-
-  if (
-    !idCoupon ||
-    !name ||
-    !description ||
-    !expirationDate ||
-    pointReq === null ||
-    amount === null ||
-    !couponStateId
-  ) {
-    return NextResponse.json(
-      {
-        error:
-          "idCoupon, name, description, expirationDate, pointReq, amount y couponStateId son obligatorios",
-      },
-      { status: 400 },
-    );
-  }
+  const {
+    idCoupon,
+    name,
+    description,
+    expirationDate,
+    pointReq,
+    amount,
+    couponStateId,
+    codeCoupon: explicitCode,
+    enabled,
+  } = parsed.data;
 
   try {
     const existing = await queryD1<{ id_coupon: number; code_coupon: string }>(
       `SELECT id_coupon, code_coupon FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ? LIMIT 1`,
-      [idCoupon, ownerId],
+      [idCoupon, ownerId] as any[],
       { revalidate: false },
     );
 
@@ -431,14 +369,15 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    let codeCoupon = explicitCode;
-    if (!codeCoupon) {
+    let codeCoupon = explicitCode ?? "";
+    if (!codeCoupon.trim()) {
       codeCoupon = existing[0].code_coupon || (await generateUniqueCode(table));
     } else {
       codeCoupon = normalizeCouponCode(codeCoupon);
     }
 
-    codeCoupon = await ensureUniqueCouponCode(codeCoupon, table, idCoupon);
+    // AQUI ESTABA EL ERROR: Cambiado de [] a () y limpiado el ownerId
+    codeCoupon = await ensureUniqueCouponCode(codeCoupon, table, Number(idCoupon));
 
     if (isProf) {
       await queryD1(
@@ -452,7 +391,7 @@ export async function PUT(request: NextRequest) {
              fk_coupon_state = ?
          WHERE id_coupon = ?
            AND fk_professional_id = ?`,
-        [name, description, expirationDate, pointReq, codeCoupon, amount, couponStateId, idCoupon, ownerId],
+        [name, description, expirationDate, pointReq, codeCoupon, amount, couponStateId, idCoupon, ownerId] as any[],
         { revalidate: false },
       );
     } else {
@@ -471,7 +410,7 @@ export async function PUT(request: NextRequest) {
         [
           name,
           description,
-          body.enabled === false ? 0 : 1,
+          enabled === false ? 0 : 1,
           expirationDate,
           pointReq,
           codeCoupon,
@@ -479,7 +418,7 @@ export async function PUT(request: NextRequest) {
           couponStateId,
           idCoupon,
           context.storeId,
-        ],
+        ] as any[],
         { revalidate: false },
       );
     }
@@ -505,16 +444,21 @@ export async function DELETE(request: NextRequest) {
   const ownerId = isProf ? context.professionalId : context.storeId;
 
   const { searchParams } = new URL(request.url);
-  const idCoupon = toPositiveInt(searchParams.get("idCoupon"));
-
-  if (!idCoupon) {
-    return NextResponse.json({ error: "idCoupon es obligatorio" }, { status: 400 });
+  const parsed = parseSearchParams(
+    { idCoupon: searchParams.get("idCoupon") },
+    couponDeleteSchema,
+    "Datos inválidos",
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const { idCoupon } = parsed.data;
 
   try {
     const existing = await queryD1<{ id_coupon: number }>(
       `SELECT id_coupon FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ? LIMIT 1`,
-      [idCoupon, ownerId],
+      [idCoupon, ownerId] as any[],
       { revalidate: false },
     );
 
@@ -527,7 +471,7 @@ export async function DELETE(request: NextRequest) {
 
     await queryD1(
       `DELETE FROM ${table} WHERE id_coupon = ? AND ${ownerCol} = ?`,
-      [idCoupon, ownerId],
+      [idCoupon, ownerId] as any[],
       { revalidate: false },
     );
 

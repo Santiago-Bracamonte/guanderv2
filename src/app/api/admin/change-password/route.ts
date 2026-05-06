@@ -1,38 +1,23 @@
 import { queryD1 } from "@/lib/cloudflare-d1";
 import bcryptjs from "bcryptjs";
+import { adminChangePasswordSchema } from "@/lib/validation/admin";
+import { parseJson } from "@/lib/validation/parse";
 
 export async function POST(request: Request) {
   try {
-    const { currentPassword, newPassword, userId } = await request.json();
-
-    // Validate input
-    if (!currentPassword || !newPassword) {
-      return Response.json(
-        { message: "Contraseña actual y nueva son requeridas" },
-        { status: 400 },
-      );
+    const parsed = await parseJson(request, adminChangePasswordSchema, "Datos inválidos");
+    if (!parsed.data) {
+      return Response.json({ message: parsed.error }, { status: 400 });
     }
 
-    if (!userId) {
-      return Response.json(
-        { message: "User ID es requerido" },
-        { status: 401 },
-      );
-    }
-
-    if (newPassword.length < 6) {
-      return Response.json(
-        { message: "La contraseña debe tener al menos 6 caracteres" },
-        { status: 400 },
-      );
-    }
+    const { currentPassword, newPassword, userId } = parsed.data;
 
     const adminId = userId;
 
     // Get current admin password from database
     const adminData = await queryD1<{ password_hash: string }>(
       "SELECT ud.password_hash FROM user_data ud JOIN users u ON u.fk_user_data = ud.id_user_data WHERE u.id_user = ? LIMIT 1",
-      [adminId],
+      [adminId] as any[],
       { revalidate: false },
     );
 
@@ -49,14 +34,14 @@ export async function POST(request: Request) {
     // Update password in database
     await queryD1(
       "UPDATE user_data SET password_hash = ? WHERE id_user_data = (SELECT fk_user_data FROM users WHERE id_user = ?)",
-      [hashedPassword, adminId],
+      [hashedPassword, adminId] as any[],
       { revalidate: false },
     );
 
     // Verify the update was successful by querying the password
     const verifyResult = await queryD1<{ password_hash: string }>(
       "SELECT ud.password_hash FROM user_data ud JOIN users u ON u.fk_user_data = ud.id_user_data WHERE u.id_user = ? LIMIT 1",
-      [adminId],
+      [adminId] as any[],
       { revalidate: false },
     );
 

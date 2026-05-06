@@ -2,30 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { ensureBenefitStoreTable } from "@/lib/benefit-store";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
-
-type PromotionInput = {
-  idBenefitStore?: number;
-  description?: string;
-  reqPoint?: number;
-  percentage?: number;
-};
-
-function toSafeText(value: unknown, maxLength: number): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, maxLength);
-}
-
-function toNonNegativeInt(value: unknown): number | null {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) return null;
-  return parsed;
-}
-
-function toPercentage(value: unknown): number | null {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100) return null;
-  return parsed;
-}
+import {
+  promotionCreateSchema,
+  promotionDeleteSchema,
+  promotionUpdateSchema,
+} from "@/lib/validation/store";
+import { parseJson, parseSearchParams } from "@/lib/validation/parse";
 
 export async function GET() {
   const auth = await getStoreOwnerContext();
@@ -60,28 +42,17 @@ export async function POST(request: NextRequest) {
 
   const { context } = auth;
 
-  let body: PromotionInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, promotionCreateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const description = toSafeText(body.description, 300);
-  const reqPoint = toNonNegativeInt(body.reqPoint);
-  const percentage = toPercentage(body.percentage);
-
-  if (!description || reqPoint === null || percentage === null) {
-    return NextResponse.json(
-      { error: "description, reqPoint y percentage son obligatorios" },
-      { status: 400 },
-    );
-  }
+  const { description, reqPoint, percentage } = parsed.data;
 
   await queryD1(
     `INSERT INTO benefit_store (description, req_point, percentage, fk_store)
      VALUES (?, ?, ?, ?)`,
-    [description, reqPoint, percentage, context.storeId],
+    [description, reqPoint, percentage, context.storeId] as any[],
     { revalidate: false },
   );
 
@@ -96,24 +67,12 @@ export async function PUT(request: NextRequest) {
 
   const { context } = auth;
 
-  let body: PromotionInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, promotionUpdateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const idBenefitStore = toNonNegativeInt(body.idBenefitStore);
-  const description = toSafeText(body.description, 300);
-  const reqPoint = toNonNegativeInt(body.reqPoint);
-  const percentage = toPercentage(body.percentage);
-
-  if (!idBenefitStore || !description || reqPoint === null || percentage === null) {
-    return NextResponse.json(
-      { error: "idBenefitStore, description, reqPoint y percentage son obligatorios" },
-      { status: 400 },
-    );
-  }
+  const { idBenefitStore, description, reqPoint, percentage } = parsed.data;
 
   const existing = await queryD1<{ id_benefit_store: number }>(
     `SELECT id_benefit_store
@@ -121,7 +80,7 @@ export async function PUT(request: NextRequest) {
      WHERE id_benefit_store = ?
        AND fk_store = ?
      LIMIT 1`,
-    [idBenefitStore, context.storeId],
+    [idBenefitStore, context.storeId] as any[],
     { revalidate: false },
   );
 
@@ -137,7 +96,7 @@ export async function PUT(request: NextRequest) {
      SET description = ?, req_point = ?, percentage = ?
      WHERE id_benefit_store = ?
        AND fk_store = ?`,
-    [description, reqPoint, percentage, idBenefitStore, context.storeId],
+    [description, reqPoint, percentage, idBenefitStore, context.storeId] as any[],
     { revalidate: false },
   );
 
@@ -153,11 +112,16 @@ export async function DELETE(request: NextRequest) {
   const { context } = auth;
 
   const { searchParams } = new URL(request.url);
-  const idBenefitStore = toNonNegativeInt(searchParams.get("idBenefitStore"));
-
-  if (!idBenefitStore) {
-    return NextResponse.json({ error: "idBenefitStore es obligatorio" }, { status: 400 });
+  const parsed = parseSearchParams(
+    { idBenefitStore: searchParams.get("idBenefitStore") },
+    promotionDeleteSchema,
+    "Datos inválidos",
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const { idBenefitStore } = parsed.data;
 
   const existing = await queryD1<{ id_benefit_store: number }>(
     `SELECT id_benefit_store
@@ -165,7 +129,7 @@ export async function DELETE(request: NextRequest) {
      WHERE id_benefit_store = ?
        AND fk_store = ?
      LIMIT 1`,
-    [idBenefitStore, context.storeId],
+    [idBenefitStore, context.storeId] as any[],
     { revalidate: false },
   );
 
@@ -180,7 +144,7 @@ export async function DELETE(request: NextRequest) {
     `DELETE FROM benefit_store
      WHERE id_benefit_store = ?
        AND fk_store = ?`,
-    [idBenefitStore, context.storeId],
+    [idBenefitStore, context.storeId] as any[],
     { revalidate: false },
   );
 

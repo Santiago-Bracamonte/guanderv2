@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
+import { pagosActionSchema } from "@/lib/validation/admin";
+import { parseJson } from "@/lib/validation/parse";
 
 export async function GET(request: NextRequest) {
   const session = await getAdminSession();
@@ -45,27 +47,32 @@ export async function POST(request: NextRequest) {
   try {
     await ensureSubPayoutTable();
     await ensureStoreSubPayoutColumn();
-    const { action, id_sub_payout, id_store_sub } = await request.json();
+    const parsed = await parseJson(request, pagosActionSchema, "Datos inválidos");
+    if (!parsed.data) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+
+    const { action, id_sub_payout, id_store_sub } = parsed.data;
 
     if (action === "approve") {
       // Approve payout
       await queryD1(
         "UPDATE sub_payout SET status = 'approved' WHERE id_sub_payout = ?",
-        [id_sub_payout]
+        [id_sub_payout] as any[]
       );
       
       // Update store_sub
       // Typically we'd update expiration date and upgrade_date too, but basic is to set status
       await queryD1(
         "UPDATE store_sub SET state_payout = 'paid' WHERE id_store_sub = ?",
-        [id_store_sub]
+        [id_store_sub] as any[]
       );
       
       return NextResponse.json({ success: true, message: "Pago aprobado" });
     } else if (action === "reject") {
       await queryD1(
         "UPDATE sub_payout SET status = 'rejected' WHERE id_sub_payout = ?",
-        [id_sub_payout]
+        [id_sub_payout] as any[]
       );
       return NextResponse.json({ success: true, message: "Pago rechazado" });
     }

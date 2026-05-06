@@ -1,6 +1,8 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
+import { storeProfileUpdateSchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
 async function ensureImageUrlColumn() {
   for (const col of ["image_url", "gallery_urls", "social_web", "social_instagram", "social_twitter", "social_whatsapp"]) {
@@ -114,27 +116,12 @@ export async function PUT(request: NextRequest) {
   if (!auth.ok) return auth.response;
   const { context } = auth;
 
-  let body: {
-    name?: string;
-    description?: string;
-    address?: string;
-    location?: string;
-    image_url?: string | null;
-    gallery_urls?: string[];
-    fk_category?: number;
-    schedule_week?: string;
-    schedule_weekend?: string;
-    schedule_sunday?: string;
-    social_web?: string | null;
-    social_instagram?: string | null;
-    social_twitter?: string | null;
-    social_whatsapp?: string | null;
-  };
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, storeProfileUpdateSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const body = parsed.data;
 
   await ensureImageUrlColumn();
 
@@ -207,7 +194,7 @@ export async function PUT(request: NextRequest) {
       body.social_twitter !== undefined ? (body.social_twitter?.trim() || null) : null,
       body.social_whatsapp !== undefined ? (body.social_whatsapp?.trim() || null) : null,
       context.storeId,
-    ],
+    ] as any[],
     { revalidate: false },
   );
 

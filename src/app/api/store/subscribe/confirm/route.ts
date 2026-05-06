@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
 import { ensureSubPayoutTable, ensureStoreSubPayoutColumn } from "@/lib/sub-payouts";
+import { subscriptionConfirmSchema } from "@/lib/validation/store";
+import { parseSearchParams } from "@/lib/validation/parse";
 
 type MpPayment = {
   status: string;
@@ -22,14 +24,17 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const paymentId =
-    searchParams.get("payment_id") ?? searchParams.get("collection_id");
-  if (!paymentId) {
-    return NextResponse.json(
-      { error: "payment_id o collection_id requerido" },
-      { status: 400 },
-    );
+  const parsed = parseSearchParams(
+    {
+      paymentId: searchParams.get("payment_id") ?? searchParams.get("collection_id"),
+    },
+    subscriptionConfirmSchema,
+  );
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+
+  const { paymentId } = parsed.data;
 
   const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
     headers: {

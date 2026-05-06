@@ -2,22 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { queryD1 } from "@/lib/cloudflare-d1";
 import { getStoreOwnerContext } from "@/lib/store-owner-context";
-
-type RecommendationInput = {
-  email?: string;
-  recommendation?: string;
-};
+import { recommendationSchema } from "@/lib/validation/store";
+import { parseJson } from "@/lib/validation/parse";
 
 const RECOMMENDATION_TO = "tomas.gonzalezz@davinci.edu.ar";
-
-function toSafeText(value: unknown, maxLength: number): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, maxLength);
-}
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
 
 function escapeHtml(str: string): string {
   return str
@@ -34,26 +22,12 @@ export async function POST(request: NextRequest) {
 
   const { context } = auth;
 
-  let body: RecommendationInput;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo JSON invalido" }, { status: 400 });
+  const parsed = await parseJson(request, recommendationSchema, "Datos inválidos");
+  if (!parsed.data) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const email = toSafeText(body.email, 180).toLowerCase();
-  const recommendation = toSafeText(body.recommendation, 1200);
-
-  if (!email || !recommendation) {
-    return NextResponse.json(
-      { error: "email y recommendation son obligatorios" },
-      { status: 400 },
-    );
-  }
-
-  if (!isValidEmail(email)) {
-    return NextResponse.json({ error: "Email invalido" }, { status: 400 });
-  }
+  const { email, recommendation } = parsed.data;
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
