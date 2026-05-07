@@ -43,9 +43,9 @@ export async function PUT(request: NextRequest) {
 
   const limits: LimitConfig = {
     cooldownMinutes: Number(cooldownMinutes),
-maxPerHour: Number(maxPerHour),
-maxPerDay: Number(maxPerDay),
-maxPerMonth: Number(maxPerMonth),
+    maxPerHour: Number(maxPerHour),
+    maxPerDay: Number(maxPerDay),
+    maxPerMonth: Number(maxPerMonth),
   };
 
   await updateNotificationLimitsByTier(tier, limits);
